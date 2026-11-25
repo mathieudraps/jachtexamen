@@ -211,6 +211,8 @@ textarea.code{font:.8rem/1.4 ui-monospace,Menlo,Consolas,monospace;color:var(--i
 .atlas figcaption{padding:7px 9px;font-size:.8rem;line-height:1.3;display:flex;flex-direction:column;gap:2px}
 .atlas figcaption span{color:var(--ink-2)}
 nav.tabs button{font-size:.68rem}
+.synccode{font-family:var(--display);font-weight:700;font-size:2rem;letter-spacing:.08em;text-align:center;padding:12px;border-radius:12px;background:var(--surface-2);user-select:all;transition:background .3s}
+.synccode.copied{background:var(--good-bg);color:var(--good)}
 .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px 8px;text-align:center}
 .stat{display:flex;flex-direction:column;gap:2px;min-width:0}
 .stat b{font-family:var(--display);font-size:1.7rem;line-height:1;color:var(--green)}
@@ -448,7 +450,7 @@ function fresh(){ return {v:1,best:0,setup:false,nick:'',examDate:'2027-04-24',s
 function norm(s){ var f=fresh(); if(!s||typeof s!=='object') return f; for(var k in f){ if(s[k]===undefined||s[k]===null) s[k]=f[k]; } return s; }
 var S=(function(){ try{ return norm(JSON.parse(localStorage.getItem(KEY))); }catch(e){ return fresh(); } })();
 var cloud={db:null,user:null,uid:null,ro:false,dirty:false,busy:false,timer:null,board:null,boardState:'idle',unsub:null};
-function save(){ S.rev=Date.now(); try{ localStorage.setItem(KEY,JSON.stringify(S)); }catch(e){} cloud.dirty=true; clearTimeout(cloud.timer); cloud.timer=setTimeout(push,4000); }
+function save(){ S.rev=Date.now(); try{ localStorage.setItem(KEY,JSON.stringify(S)); }catch(e){} cloud.dirty=true; clearTimeout(cloud.timer); cloud.timer=setTimeout(push,4000); syncSoon(); }
 function tday(){ var t=today(); if(S.t.d!==t){ S.t={d:t,rev:0,les:0,foto:0}; } return S.t; }
 
 function seen(id){ return !!S.cards[id]; }
@@ -494,6 +496,51 @@ function watchBoard(){ if(cloud.unsub||!cloud.db) return; cloud.boardState='load
     cloud.board=snap.docs.map(function(d){ var x=d.data()||{}; return {id:d.id,nick:String(x.nick||'').slice(0,24),xp:+x.xp||0,streak:+x.streak||0,beheerst:+x.beheerst||0,totaal:+x.totaal||0,best:typeof x.besteExamen==='number'?x.besteExamen:null}; });
     rerenderIfBoard(); },function(){ clearTimeout(to); cloud.boardState='err'; cloud.unsub=null; rerenderIfBoard(); }); }
 document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='hidden'&&cloud.dirty){ clearTimeout(cloud.timer); push(); } });
+
+/* ---------- Toestellen koppelen (Supabase, alleen vordering, gekoppeld via code) ---------- */
+var SB={url:'https://wdhqgawhrnvjbvtkncxh.supabase.co',key:'sb_publishable_f0QkQCVf6jw-Gw5mXvjJVg_XiGw-VXg'};
+var sync={busy:false,timer:null,err:'',pushed:0,again:false};
+function rpc(fn,body){ var txt=JSON.stringify(body); return fetch(SB.url+'/rest/v1/rpc/'+fn,{method:'POST',headers:{'apikey':SB.key,'Content-Type':'application/json'},body:txt,keepalive:txt.length<60000}).then(function(r){ if(!r.ok) throw new Error('http '+r.status); return r.json(); }); }
+function normCode(c){ c=String(c||'').toUpperCase().replace(/[^A-Z0-9]/g,''); return c.length===12?c.slice(0,4)+'-'+c.slice(4,8)+'-'+c.slice(8):''; }
+function newCode(){ var al='ABCDEFGHJKLMNPQRSTUVWXYZ23456789', out='', a=new Uint8Array(12); try{ crypto.getRandomValues(a); }catch(e){ for(var j=0;j<12;j++) a[j]=Math.floor(Math.random()*256); } for(var i=0;i<12;i++) out+=al[a[i]%32]; return normCode(out); }
+function stripSync(st){ var o={}; for(var k in st){ if(k!=='sync') o[k]=st[k]; } return o; }
+function mergeState(L,R){ var newer=(R.rev||0)>(L.rev||0)?R:L, older=newer===R?L:R, o=JSON.parse(JSON.stringify(stripSync(newer)));
+  o.cards=o.cards||{}; var oc=older.cards||{}; Object.keys(oc).forEach(function(id){ var c=o.cards[id], d=oc[id]; if(!c||(d.r||0)>(c.r||0)||((d.r||0)===(c.r||0)&&(d.d||0)>(c.d||0))) o.cards[id]=d; });
+  o.lessons=o.lessons||{}; Object.keys(older.lessons||{}).forEach(function(id){ var v=older.lessons[id]; if(!o.lessons[id]||v<o.lessons[id]) o.lessons[id]=v; });
+  o.days=o.days||{}; Object.keys(older.days||{}).forEach(function(d){ var v=older.days[d], c=o.days[d]; if(!c||(v.n||0)>(c.n||0)) o.days[d]=v; });
+  var sn={}; o.exams=(o.exams||[]).concat(older.exams||[]).filter(function(e){ var k=e.day+'|'+e.score+'|'+(e.v||[]).join(','); if(sn[k]) return false; sn[k]=1; return true; }).sort(function(a,b){return a.day-b.day;}).slice(-40);
+  o.flags=o.flags||{}; Object.keys(older.flags||{}).forEach(function(k){ o.flags[k]=1; });
+  o.xp=Math.max(L.xp||0,R.xp||0); o.best=Math.max(L.best||0,R.best||0); o.start=Math.min(L.start||today(),R.start||today()); o.setup=!!(L.setup||R.setup);
+  if(L.lastBackup||R.lastBackup) o.lastBackup=Math.max(L.lastBackup||0,R.lastBackup||0);
+  if(L.t&&R.t&&L.t.d===R.t.d) o.t={d:L.t.d,rev:Math.max(L.t.rev||0,R.t.rev||0),les:Math.max(L.t.les||0,R.t.les||0),foto:Math.max(L.t.foto||0,R.t.foto||0)};
+  o.rev=Math.max(L.rev||0,R.rev||0); o.sync=L.sync; return norm(o); }
+function syncSoon(){ if(!S.sync||!S.sync.code) return; clearTimeout(sync.timer); sync.timer=setTimeout(function(){ syncNow(false); },4000); }
+function syncNow(manual){ if(!S.sync||!S.sync.code) return Promise.resolve(false); if(sync.busy){ sync.again=true; return Promise.resolve(false); } sync.busy=true; clearTimeout(sync.timer);
+  var code=S.sync.code;
+  return rpc('jacht_sync_pull',{p_code:code}).then(function(res){
+    var remote=res&&res.state?norm(res.state):null, changed=false;
+    if(remote){ var m=mergeState(S,remote); m.sync=S.sync; if(JSON.stringify(stripSync(m))!==JSON.stringify(stripSync(S))){ S=m; changed=true; try{ localStorage.setItem(KEY,JSON.stringify(S)); }catch(e){} } }
+    var needPush=!remote||(S.rev||0)!==(remote.rev||0)||changed||manual;
+    var done=function(){ S.sync.last=Date.now(); sync.err=''; try{ localStorage.setItem(KEY,JSON.stringify(S)); }catch(e){} sync.busy=false;
+      if(changed&&!ui.view&&!ui.run&&!ui.exam) render(); else if(ui.tab==='klassement'&&!ui.view) render();
+      if(sync.again){ sync.again=false; syncSoon(); } return changed; };
+    return needPush?rpc('jacht_sync_push',{p_code:code,p_state:stripSync(S),p_rev:S.rev||Date.now()}).then(done):done();
+  }).catch(function(){ sync.busy=false; sync.err='Synchroniseren lukte niet. Controleer je internetverbinding; de app probeert het later opnieuw.'; if(ui.tab==='klassement'&&!ui.view) render(); return false; }); }
+document.addEventListener('visibilitychange',function(){ if(!S.sync||!S.sync.code) return; if(document.visibilityState==='visible') syncNow(false); else if(sync.timer){ clearTimeout(sync.timer); syncNow(false); } });
+window.addEventListener('online',function(){ if(S.sync&&S.sync.code) syncNow(false); });
+function syncCard(){ var c=S.sync&&S.sync.code, h='<section class="card" id="sync"><h2>Toestellen koppelen</h2>';
+  if(c){ h+='<p class="small muted">Dit toestel is gekoppeld. Vul deze code in op je andere gsm of computer (Profiel, Toestellen koppelen). Je vordering blijft dan vanzelf op beide gelijk.</p><div class="synccode num" id="synccode">'+esc(c)+'</div><div class="row"><button type="button" class="btn green grow" data-act="syncCopy">Kopieer code</button><button type="button" class="btn grow" data-act="syncGo">Nu synchroniseren</button></div>';
+    h+='<p class="small'+(sync.err?'" style="color:var(--bad)" role="alert">'+esc(sync.err):' muted" role="status">'+(sync.busy?'Bezig met synchroniseren…':S.sync.last?'Laatst gesynchroniseerd: '+new Date(S.sync.last).toLocaleString('nl-BE',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'Nog niet gesynchroniseerd'))+'</p>';
+    h+=(ui.confirm==='unsync'?'<p class="small"><strong>Dit toestel stopt met synchroniseren.</strong> Je vordering blijft op dit toestel staan.</p><div class="row"><button type="button" class="btn grow" data-act="cancel">Annuleer</button><button type="button" class="btn danger grow" data-act="syncOff">Ontkoppel</button></div>':'<button type="button" class="linkbtn" data-act="syncAskOff">Ontkoppel dit toestel</button>');
+  } else {
+    h+='<p class="small muted">Oefen je op je gsm én je computer? Koppel ze met een code, dan blijft je vordering vanzelf op beide gelijk. Er wordt alleen je vordering bewaard: geen naam, e-mail of wachtwoord.</p>';
+    h+='<button type="button" class="btn green" data-act="syncNew">Maak een koppelcode</button>';
+    h+='<div class="stack" style="gap:8px;border-top:1px solid var(--line);padding-top:12px"><label class="f" for="syncin">Heb je al een code van je andere toestel?<input type="text" id="syncin" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ABCD-EFGH-JKLM" value="'+esc(ui.syncIn||'')+'"></label><button type="button" class="btn" data-act="syncJoin">Koppel dit toestel</button></div>';
+    if(sync.err) h+='<p class="small" style="color:var(--bad)" role="alert">'+esc(sync.err)+'</p>';
+  }
+  return h+'</section>'; }
+
+
 
 /* ---------- ui state ---------- */
 var TABS=[['vandaag','Vandaag','<circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/>'],['leren','Leren','<path d="M4 5c3-1 5-1 8 1 3-2 5-2 8-1v14c-3-1-5-1-8 1-3-2-5-2-8-1z"/><path d="M12 6v14"/>'],['cursus','Cursus','<path d="M6 3h9l3 3v15H6z"/><path d="M15 3v3h3M9 10h6M9 14h6M9 18h4"/>'],['oefenen','Oefenen','<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/>'],['examen','Examen','<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M8.5 10l1.5 1.5L13 8.5M8.5 16h7M15 10.5h.5"/>'],['klassement','Profiel','<circle cx="12" cy="8" r="4"/><path d="M4 21c1-4.5 4.5-7 8-7s7 2.5 8 7"/>']];
@@ -768,6 +815,7 @@ function vKlassement(){ var me=myRow(), best=bestStreak(), readN=Object.keys(S.l
   h+='<section class="card"><div class="stats">'+stat(me.streak,'dagen op rij')+stat(best,'langste reeks')+stat(me.xp,'punten')+stat(readN+'/'+LESSONS.length,'lessen gelezen')+stat(me.beheerst,'vragen beheerst')+stat(seenN,'vragen gezien')+stat(bestEx===null?'–':nl(bestEx),'beste proefexamen')+stat(S.exams.length,'proefexamens')+stat(passN,'keer geslaagd')+'</div></section>';
   h+=streakCard();
   h+='<section class="card"><label class="f" for="nick">Je naam<input type="text" id="nick" maxlength="24" autocomplete="nickname" value="'+esc(S.nick)+'" placeholder="Bijvoorbeeld je voornaam"></label><button type="button" class="btn green" data-act="saveNick">Bewaar naam</button></section>';
+  h+=syncCard();
   h+=backupCard();
   if(cloud.db){ watchBoard(); var rows=(cloud.board||[]).filter(function(r){return r.nick;}).sort(function(a,b){return b.xp-a.xp;});
     h+='<section class="card"><h2>Klassement</h2>'; if(!rows.length) h+='<p class="small muted">Nog niemand in de stand.</p>'; else { h+='<div>'; rows.forEach(function(r,i){ h+='<div class="rank'+(r.id===cloud.uid?' me':'')+'"><span class="pos">'+(i+1)+'</span><div style="min-width:0"><p class="nm">'+esc(r.nick)+'</p><p class="small muted num">reeks '+r.streak+'</p></div><span class="xp">'+r.xp+'</span></div>'; }); h+='</div>'; } h+='</section>'; }
@@ -785,7 +833,7 @@ function readBackup(code){ try{ code=String(code||'').replace(/\s+/g,''); var m=
     var p=m[1]==='1'?(window.DecompressionStream?new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text():Promise.reject(new Error('oud'))):Promise.resolve(new TextDecoder().decode(bytes));
     return p.then(function(t){ var o=JSON.parse(t); if(!o||typeof o!=='object'||typeof o.cards!=='object'||!o.cards) throw new Error('inhoud'); return norm(o); });
   }catch(e){ return Promise.reject(e); } }
-function backupCard(){ var b=ui.bk||{}, h='<section class="card" id="backup"><h2>Back-up</h2><p class="small muted">Je vordering staat alleen op deze gsm. Maak af en toe een back-up en bewaar de code in een notitie of stuur ze naar jezelf. Met die code zet je alles terug, ook op een nieuwe gsm.'+(S.lastBackup?' Laatste back-up: '+fmtDay(S.lastBackup)+'.':'')+'</p>';
+function backupCard(){ var b=ui.bk||{}, h='<section class="card" id="backup"><h2>Back-up</h2><p class="small muted">'+(S.sync&&S.sync.code?'Je toestellen zijn gekoppeld, dus je vordering staat ook online. Een back-up is een extra zekerheid.':'Zonder koppeling staat je vordering alleen op dit toestel. Maak af en toe een back-up en bewaar de code in een notitie of stuur ze naar jezelf.')+' Met die code zet je alles terug, ook op een nieuwe gsm.'+(S.lastBackup?' Laatste back-up: '+fmtDay(S.lastBackup)+'.':'')+'</p>';
   if(b.code){ h+='<textarea id="bkout" class="code" readonly rows="4">'+esc(b.code)+'</textarea><div class="row"><button type="button" class="btn green grow" data-act="bkCopy">Kopieer code</button>'+(navigator.share?'<button type="button" class="btn grow" data-act="bkShare">Deel</button>':'')+'</div>'+(b.msg?'<p class="small" role="status">'+esc(b.msg)+'</p>':''); }
   else h+='<button type="button" class="btn green" data-act="bkMake">Maak back-up</button>';
   h+='<div class="stack" style="gap:8px;border-top:1px solid var(--line);padding-top:12px"><label class="f" for="bkin">Back-up terugzetten<textarea id="bkin" class="code" rows="3" placeholder="Plak hier je back-upcode (begint met JX)">'+esc(b.input||'')+'</textarea></label>';
@@ -818,7 +866,7 @@ function vSettings(){ var fl=Object.keys(S.flags).length;
   h+='<div class="f"><span>Tijd per dag</span><div class="seg" role="group" aria-label="Tijd per dag">'+[15,30,45].map(function(g){return '<button type="button" data-act="goal" data-g="'+g+'" class="'+(S.goal===g?'on':'')+'" aria-pressed="'+(S.goal===g)+'">'+g+' min</button>';}).join('')+'</div></div>';
   h+='<button type="button" class="btn primary" data-act="saveSettings">Bewaar</button></section>';
   h+='<section class="card"><div class="list"><button type="button" class="item" data-act="flags"><div class="grow"><h3>Gemarkeerde vragen</h3><p class="small muted">'+fl+' om na te kijken in je cursus</p></div><span class="chev">&rarr;</span></button><button type="button" class="item" data-act="bronnen"><div class="grow"><h3>Bronnen en fotoverantwoording</h3><p class="small muted">Wetgeving, leerstof en makers van de foto’s</p></div><span class="chev">&rarr;</span></button></div></section>';
-  h+='<section class="card"><h3>Opnieuw beginnen</h3><p class="small muted">Wist al je vordering, je reeks en je punten.</p>'+(ui.confirm==='reset'?'<div class="row"><button type="button" class="btn grow" data-act="cancel">Annuleer</button><button type="button" class="btn danger grow" data-act="reset">Ja, wis alles</button></div>':'<button type="button" class="btn danger" data-act="askReset">Wis mijn vordering</button>')+'</section>';
+  h+='<section class="card"><h3>Opnieuw beginnen</h3><p class="small muted">Wist al je vordering, je reeks en je punten op dit toestel, en ontkoppelt het van je andere toestellen.</p>'+(ui.confirm==='reset'?'<div class="row"><button type="button" class="btn grow" data-act="cancel">Annuleer</button><button type="button" class="btn danger grow" data-act="reset">Ja, wis alles</button></div>':'<button type="button" class="btn danger" data-act="askReset">Wis mijn vordering</button>')+'</section>';
   return h; }
 function vFlags(){ var ids=Object.keys(S.flags), h=backBtn('Instellingen')+'<header><p class="eyebrow">Na te kijken</p><h1>Gemarkeerde vragen</h1></header>';
   if(!ids.length) return h+'<p class="muted">Je hebt nog geen vragen gemarkeerd. Dat kan na elk antwoord.</p>';
@@ -876,6 +924,16 @@ var A={
   flagsTab:function(){ go({name:'flags',from:'tab'}); },
   bronnen:function(){ go({name:'bronnen'}); },
   askReset:function(){ readSettings(); ui.confirm='reset'; render(); },
+  syncNew:function(){ S.sync={code:newCode()}; sync.err=''; S.rev=Date.now(); try{ localStorage.setItem(KEY,JSON.stringify(S)); }catch(e){} render(); syncNow(true).then(function(){ render(); }); },
+  syncJoin:function(){ var t=document.getElementById('syncin'), code=normCode(t?t.value:''); ui.syncIn=t?t.value:''; sync.err='';
+    if(!code){ sync.err='Een koppelcode heeft 12 tekens, bijvoorbeeld ABCD-EFGH-JKLM.'; render(); return; }
+    sync.busy=true; render();
+    rpc('jacht_sync_pull',{p_code:code}).then(function(res){ sync.busy=false; if(!res||!res.state){ sync.err='Deze code is niet gekend. Kijk ze na op je andere toestel.'; render(); return; }
+      S.sync={code:code}; ui.syncIn=''; syncNow(true).then(function(){ render(); }); },function(){ sync.busy=false; sync.err='Koppelen lukte niet. Controleer je internetverbinding.'; render(); }); },
+  syncGo:function(){ syncNow(true).then(function(){ render(); }); render(); },
+  syncCopy:function(){ var c=(S.sync||{}).code||''; try{ navigator.clipboard.writeText(c).then(function(){ sync.err=''; var el=document.getElementById('synccode'); if(el){ el.classList.add('copied'); setTimeout(function(){ el.classList.remove('copied'); },1200); } },function(){}); }catch(e){} },
+  syncAskOff:function(){ ui.confirm='unsync'; render(); },
+  syncOff:function(){ delete S.sync; sync.err=''; ui.confirm=null; try{ localStorage.setItem(KEY,JSON.stringify(S)); }catch(e){} render(); },
   bkMake:function(){ makeBackup().then(function(code){ S.lastBackup=today(); save(); ui.bk={code:code,input:(ui.bk||{}).input}; render(); var el=document.getElementById('backup'); if(el&&el.scrollIntoView) el.scrollIntoView({block:'start'}); }); },
   bkCopy:function(){ var code=(ui.bk||{}).code||''; function sel(){ var t=document.getElementById('bkout'); if(t){ t.focus(); t.select(); } ui.bk.msg='Selecteer de code en kopieer ze zelf.'; }
     try{ navigator.clipboard.writeText(code).then(function(){ ui.bk.msg='Gekopieerd. Plak de code in een notitie of bericht aan jezelf.'; render(); },function(){ sel(); render(); sel(); }); }catch(e){ sel(); } },
@@ -887,7 +945,7 @@ var A={
   setupExam:function(d){ readSetup(); ui.setupExam=d.x; render(); },
   setupGoal:function(d){ readSetup(); S.goal=+d.g; render(); },
   setupDone:function(){ readSetup(); S.setup=true; ui.setupExam=null; save(); clearTimeout(cloud.timer); push(); ui.tab='vandaag'; ui.view=null; render(); toTop(); },
-  reset:function(){ var keep={setup:S.setup,nick:S.nick,examDate:S.examDate,schoolEnd:S.schoolEnd,goal:S.goal}; S=fresh(); for(var k in keep) S[k]=keep[k]; save(); ui.confirm=null; ui.view=null; render(); }
+  reset:function(){ var keep={setup:S.setup,nick:S.nick,examDate:S.examDate,schoolEnd:S.schoolEnd,goal:S.goal}; clearTimeout(sync.timer); S=fresh(); for(var k in keep) S[k]=keep[k]; save(); ui.confirm=null; ui.view=null; render(); }
 };
 function readSettings(){ var a=document.getElementById('examDate'), b=document.getElementById('schoolEnd'); if(a&&!isNaN(parseDay(a.value))) S.examDate=a.value; if(b) S.schoolEnd=isNaN(parseDay(b.value))?'':b.value; }
 function keepInputs(){ readSettings(); render(); }
@@ -908,7 +966,7 @@ document.addEventListener('keydown',function(ev){ if(ev.key==='Enter'&&ev.target
   function out(){ if(!el.parentNode) return; el.classList.add('out'); setTimeout(function(){ if(el.parentNode) el.parentNode.removeChild(el); },480); }
   el.addEventListener('click',out); setTimeout(out, rm?150:3000); })();
 try{ if(window.navigator.standalone===true) document.documentElement.classList.add('ios-app'); }catch(e){}
-(function boot(){ var h=''; try{ h=location.hash.replace('#',''); }catch(e){} if(TABS.some(function(t){return t[0]===h;})) ui.tab=h; tday(); render(); initCloud(); })();
+(function boot(){ var h=''; try{ h=location.hash.replace('#',''); }catch(e){} if(TABS.some(function(t){return t[0]===h;})) ui.tab=h; tday(); render(); initCloud(); if(S.sync&&S.sync.code) setTimeout(function(){ syncNow(false); },800); })();
 })();
 </script>
 <script>if('serviceWorker' in navigator){addEventListener('load',function(){navigator.serviceWorker.register('sw.js').then(function(r){r.update();}).catch(function(){});});var _r=false;navigator.serviceWorker&&navigator.serviceWorker.addEventListener('controllerchange',function(){if(_r)return;_r=true;location.reload();});}</script></body></html>
