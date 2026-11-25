@@ -246,17 +246,43 @@ nav.tabs button.on::before{content:"";position:absolute;top:5px;width:52px;heigh
 nav.tabs button.on svg{transform:translateY(-1px)}
 #splash{position:fixed;inset:0;z-index:50;display:grid;place-items:center;background:linear-gradient(165deg,var(--band-2),var(--band));color:var(--band-ink)}
 #splash .logo{display:flex;flex-direction:column;align-items:center;gap:14px}
-#splash svg{width:120px;height:120px}
 #splash .t{font-family:var(--display);font-weight:700;font-size:2.1rem;letter-spacing:.01em}
 #splash .s{font-size:.8rem;letter-spacing:.14em;text-transform:uppercase;color:var(--band-mute)}
+#splash .stage{width:min(330px,88vw);height:auto;overflow:hidden}
+#splash .eye-dead,#splash .flash,#splash .pang{opacity:0}
+#splash .pang{font-family:var(--display);font-weight:700;font-size:40px;fill:#FFB37E;stroke:#1C3A27;stroke-width:5px;paint-order:stroke;letter-spacing:1px}
+#splash .fly{transform:translate(160px,112px)}
+#splash .scope{transform:translate(160px,112px)}
+@media (prefers-reduced-motion:no-preference){
+  #splash .fly{animation:jxFly 1s cubic-bezier(.25,.6,.45,1) both}
+  #splash .wing{transform-box:fill-box;transform-origin:50% 100%;animation:jxFlap .16s ease-in-out 6 alternate}
+  #splash .scope{animation:jxAim .95s cubic-bezier(.3,.7,.3,1) .05s both,jxRecoil .3s ease-out 1.05s}
+  #splash .flash{transform-box:fill-box;transform-origin:center;animation:jxFlash .4s ease-out 1.05s forwards}
+  #splash .pang{transform-box:fill-box;transform-origin:center;animation:jxPang .75s cubic-bezier(.3,1.7,.5,1) 1.05s both}
+  #splash .eye-alive{animation:jxHide .01s linear 1.05s both}
+  #splash .eye-dead{animation:jxShow .01s linear 1.05s both}
+  #splash .fall{transform-box:fill-box;transform-origin:center;animation:jxFall 1s cubic-bezier(.55,0,.9,.55) 1.15s both}
+  #splash .fe{opacity:0;animation:jxFeather 1.5s ease-out 1.08s both}
+  #splash .fe1{--x:-46px;--y:-30px;--r:200deg} #splash .fe2{--x:40px;--y:-38px;--r:-160deg} #splash .fe3{--x:-22px;--y:52px;--r:120deg} #splash .fe4{--x:54px;--y:24px;--r:260deg} #splash .fe5{--x:6px;--y:-56px;--r:-220deg} #splash .fe6{--x:-60px;--y:18px;--r:140deg} #splash .fe7{--x:28px;--y:58px;--r:-120deg}
+  #splash .stage{animation:jxShake .32s ease-out 1.05s}
+  #splash .reeds{transform-box:fill-box;transform-origin:50% 100%;animation:jxSway 2.6s ease-in-out infinite alternate}
+  #splash .t,#splash .s{opacity:0;animation:rise .45s ease 1.7s forwards}
+  #splash .s{animation-delay:1.85s}
+}
+@keyframes jxFly{from{transform:translate(-80px,175px)}55%{transform:translate(70px,118px)}to{transform:translate(160px,112px)}}
+@keyframes jxFlap{from{transform:scaleY(1)}to{transform:scaleY(-.75)}}
+@keyframes jxAim{from{transform:translate(262px,46px)}60%{transform:translate(150px,124px)}80%{transform:translate(166px,106px)}to{transform:translate(160px,112px)}}
+@keyframes jxRecoil{0%{transform:translate(160px,112px)}30%{transform:translate(164px,96px) rotate(-6deg)}to{transform:translate(160px,112px)}}
+@keyframes jxFlash{from{opacity:.95;transform:scale(.3)}to{opacity:0;transform:scale(2.2)}}
+@keyframes jxPang{0%{opacity:0;transform:scale(.2) rotate(-12deg)}60%{opacity:1;transform:scale(1.1) rotate(-6deg)}to{opacity:1;transform:scale(1) rotate(-6deg)}}
+@keyframes jxHide{to{opacity:0}}
+@keyframes jxShow{to{opacity:1}}
+@keyframes jxFall{0%{transform:translate(0,0) rotate(0)}12%{transform:translate(6px,-14px) rotate(40deg)}to{transform:translate(28px,260px) rotate(620deg)}}
+@keyframes jxFeather{0%{opacity:0;transform:translate(0,0) rotate(0)}10%{opacity:1}70%{opacity:1}to{opacity:0;transform:translate(var(--x),calc(var(--y) + 60px)) rotate(var(--r))}}
+@keyframes jxShake{0%,100%{transform:none}25%{transform:translate(-4px,2px)}50%{transform:translate(3px,-3px)}75%{transform:translate(-2px,1px)}}
+@keyframes jxSway{from{transform:rotate(-1.5deg)}to{transform:rotate(1.5deg)}}
 #splash.out{opacity:0;transform:scale(1.06);transition:opacity .45s ease,transform .45s ease;pointer-events:none}
 @media (prefers-reduced-motion:no-preference){
-  #splash .rc{stroke-dasharray:340;stroke-dashoffset:340;animation:draw 1s cubic-bezier(.6,0,.2,1) forwards}
-  #splash .rc2{animation-delay:.15s} #splash .rc3{animation-delay:.3s}
-  #splash .cross{stroke-dasharray:60;stroke-dashoffset:60;animation:draw .5s ease .55s forwards}
-  #splash .dot{transform-origin:60px 60px;transform:scale(0);animation:popin .35s cubic-bezier(.3,1.6,.5,1) .95s forwards}
-  #splash .t,#splash .s{opacity:0;transform:translateY(8px);animation:rise .45s ease .7s forwards}
-  #splash .s{animation-delay:.85s}
   #app.enter > *{animation:rise .38s cubic-bezier(.2,.8,.2,1) both}
   #app.enter > *:nth-child(2){animation-delay:.05s} #app.enter > *:nth-child(3){animation-delay:.1s} #app.enter > *:nth-child(4){animation-delay:.15s} #app.enter > *:nth-child(n+5){animation-delay:.2s}
   .opt.ok{animation:pop .35s ease} .opt.no{animation:shake .4s ease}
@@ -272,7 +298,7 @@ nav.tabs button.on svg{transform:translateY(-1px)}
 @media (prefers-reduced-motion:no-preference){ .bar > i,.scale > i{transition:width .35s ease} }
 </style>
 
-<div id="splash" aria-hidden="true"><div class="logo"><svg viewBox="0 0 120 120" fill="none" stroke="currentColor" stroke-linecap="round"><circle class="rc" cx="60" cy="60" r="52" stroke-width="3"/><circle class="rc rc2" cx="60" cy="60" r="34" stroke-width="2.5" stroke="#FFB37E"/><circle class="rc rc3" cx="60" cy="60" r="16" stroke-width="2"/><path class="cross" d="M60 2v28M60 90v28M2 60h28M90 60h28" stroke-width="2.5"/><circle class="dot" cx="60" cy="60" r="5" fill="#FFB37E" stroke="none"/></svg><div class="t">Jachtexamen Trainer</div><div class="s">Vlaanderen · 2027</div></div></div>
+<div id="splash" aria-hidden="true"><div class="logo"><svg class="stage" viewBox="0 0 320 250"><g class="reeds" fill="none" stroke-linecap="round"><path d="M14 250 Q22 200 16 158 M34 250 Q40 205 46 168 M304 250 Q296 206 300 176 M288 250 Q284 214 276 192" stroke="#7FA37A" stroke-width="3"/><g fill="#8A5A34"><rect x="12.5" y="146" width="7" height="22" rx="3.5"/><rect x="42.5" y="156" width="7" height="20" rx="3.5"/><rect x="296.5" y="164" width="7" height="20" rx="3.5"/></g></g><g class="fly"><g class="fall"><g class="duck" transform="scale(1.7)"><path d="M-19 -3 L-33 -10 L-30 3 Z" fill="#3A3F44"/><ellipse rx="23" ry="12.5" fill="#B9C0C4"/><ellipse cx="11" cy="2" rx="11" ry="9" fill="#7B4A2E"/><path d="M13 -6 Q17 -11 19 -13" stroke="#FFFFFF" stroke-width="3" fill="none"/><circle cx="22" cy="-15" r="8.5" fill="#2F7A4A"/><path d="M29.5 -16 L40 -12.5 L29.5 -10 Z" fill="#F2B530"/><g class="eye-alive"><circle cx="24.5" cy="-17" r="2.2" fill="#FFFFFF"/><circle cx="25.2" cy="-17" r="1.1" fill="#111111"/></g><path class="eye-dead" d="M22.6 -19.2 l3.8 3.8 M26.4 -19.2 l-3.8 3.8" stroke="#111111" stroke-width="1.7" stroke-linecap="round"/><path class="wing" d="M-13 -5 Q-3 -30 13 -6 Z" fill="#8E979C"/></g></g></g><g transform="translate(160 112)"><g class="feathers"><path class="fe fe1" d="M0 -6 Q3.5 0 0 6 Q-3.5 0 0 -6Z" fill="#EEF1F2"/><path class="fe fe2" d="M0 -6 Q3.5 0 0 6 Q-3.5 0 0 -6Z" fill="#B9C0C4"/><path class="fe fe3" d="M0 -6 Q3.5 0 0 6 Q-3.5 0 0 -6Z" fill="#2F7A4A"/><path class="fe fe4" d="M0 -6 Q3.5 0 0 6 Q-3.5 0 0 -6Z" fill="#EEF1F2"/><path class="fe fe5" d="M0 -6 Q3.5 0 0 6 Q-3.5 0 0 -6Z" fill="#7B4A2E"/><path class="fe fe6" d="M0 -6 Q3.5 0 0 6 Q-3.5 0 0 -6Z" fill="#B9C0C4"/><path class="fe fe7" d="M0 -6 Q3.5 0 0 6 Q-3.5 0 0 -6Z" fill="#EEF1F2"/></g></g><circle class="flash" cx="160" cy="112" r="40" fill="#FFE7A8"/><g class="scope" fill="none" stroke="#FFFFFF" stroke-linecap="round"><circle r="46" stroke-width="3"/><path d="M0 -62 V-18 M0 18 V62 M-62 0 H-18 M18 0 H62" stroke-width="2.6"/><circle r="3.2" fill="#FF7A3D" stroke="none"/></g><text class="pang" x="160" y="58" text-anchor="middle">PANG!</text></svg><div class="t">Jachtexamen Trainer</div><div class="s">Raak! Tijd om te oefenen</div></div></div>
 <div id="scroller"><div id="app"><p class="muted">Bezig met laden…</p></div></div>
 <nav class="tabs" id="tabs" hidden><div></div></nav>
 
@@ -717,7 +743,7 @@ document.addEventListener('keydown',function(ev){ if(ev.key==='Enter'&&ev.target
 
 (function splash(){ var el=document.getElementById('splash'); if(!el) return; var rm=false; try{ rm=matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(e){}
   function out(){ if(!el.parentNode) return; el.classList.add('out'); setTimeout(function(){ if(el.parentNode) el.parentNode.removeChild(el); },480); }
-  el.addEventListener('click',out); setTimeout(out, rm?150:1500); })();
+  el.addEventListener('click',out); setTimeout(out, rm?150:3000); })();
 (function boot(){ var h=''; try{ h=location.hash.replace('#',''); }catch(e){} if(TABS.some(function(t){return t[0]===h;})) ui.tab=h; tday(); render(); initCloud(); })();
 })();
 </script>
