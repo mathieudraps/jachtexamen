@@ -144,6 +144,7 @@ figure.photo figcaption{font-size:.8125rem;color:var(--ink-2);padding:6px 10px}
 .item .eyebrow{color:var(--vk)}
 .nowcard{background:var(--vks);gap:8px}
 .nowcard .eyebrow{color:var(--vk)}
+textarea.code{font:.8rem/1.4 ui-monospace,Menlo,Consolas,monospace;color:var(--ink);background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:10px;width:100%;resize:vertical;word-break:break-all}
 .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px 8px;text-align:center}
 .stat{display:flex;flex-direction:column;gap:2px;min-width:0}
 .stat b{font-family:var(--display);font-size:1.7rem;line-height:1;color:var(--green)}
@@ -591,10 +592,31 @@ function vKlassement(){ var me=myRow(), best=bestStreak(), readN=Object.keys(S.l
   h+='<section class="card"><div class="stats">'+stat(me.streak,'dagen op rij')+stat(best,'langste reeks')+stat(me.xp,'punten')+stat(readN+'/'+LESSONS.length,'lessen gelezen')+stat(me.beheerst,'vragen beheerst')+stat(seenN,'vragen gezien')+stat(bestEx===null?'–':nl(bestEx),'beste proefexamen')+stat(S.exams.length,'proefexamens')+stat(passN,'keer geslaagd')+'</div></section>';
   h+=streakCard();
   h+='<section class="card"><label class="f" for="nick">Je naam<input type="text" id="nick" maxlength="24" autocomplete="nickname" value="'+esc(S.nick)+'" placeholder="Bijvoorbeeld je voornaam"></label><button type="button" class="btn green" data-act="saveNick">Bewaar naam</button></section>';
+  h+=backupCard();
   if(cloud.db){ watchBoard(); var rows=(cloud.board||[]).filter(function(r){return r.nick;}).sort(function(a,b){return b.xp-a.xp;});
     h+='<section class="card"><h2>Klassement</h2>'; if(!rows.length) h+='<p class="small muted">Nog niemand in de stand.</p>'; else { h+='<div>'; rows.forEach(function(r,i){ h+='<div class="rank'+(r.id===cloud.uid?' me':'')+'"><span class="pos">'+(i+1)+'</span><div style="min-width:0"><p class="nm">'+esc(r.nick)+'</p><p class="small muted num">reeks '+r.streak+'</p></div><span class="xp">'+r.xp+'</span></div>'; }); h+='</div>'; } h+='</section>'; }
-  h+='<p class="small muted">Punten: 10 per juist antwoord, 15 per gelezen les, extra voor een proefexamen. Je vordering staat alleen op deze gsm: open de app altijd via hetzelfde icoon.</p>';
+  h+='<p class="small muted">Punten: 10 per juist antwoord, 15 per gelezen les, extra voor een proefexamen. Open de app altijd via hetzelfde icoon op je beginscherm.</p>';
   return h; }
+
+/* ---------- Back-up ---------- */
+function b64e(bytes){ var out=''; for(var i=0;i<bytes.length;i+=0x8000) out+=String.fromCharCode.apply(null,bytes.subarray(i,i+0x8000)); return btoa(out); }
+function b64d(str){ var bin=atob(str), a=new Uint8Array(bin.length); for(var i=0;i<bin.length;i++) a[i]=bin.charCodeAt(i); return a; }
+function makeBackup(){ var bytes=new TextEncoder().encode(JSON.stringify(S));
+  if(window.CompressionStream){ return new Response(new Blob([bytes]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer().then(function(b){ return 'JX1:'+b64e(new Uint8Array(b)); },function(){ return 'JX0:'+b64e(bytes); }); }
+  return Promise.resolve('JX0:'+b64e(bytes)); }
+function readBackup(code){ try{ code=String(code||'').replace(/\s+/g,''); var m=/^JX([01]):([A-Za-z0-9+\/=]+)$/.exec(code); if(!m) return Promise.reject(new Error('fmt'));
+    var bytes=b64d(m[2]);
+    var p=m[1]==='1'?(window.DecompressionStream?new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text():Promise.reject(new Error('oud'))):Promise.resolve(new TextDecoder().decode(bytes));
+    return p.then(function(t){ var o=JSON.parse(t); if(!o||typeof o!=='object'||typeof o.cards!=='object'||!o.cards) throw new Error('inhoud'); return norm(o); });
+  }catch(e){ return Promise.reject(e); } }
+function backupCard(){ var b=ui.bk||{}, h='<section class="card" id="backup"><h2>Back-up</h2><p class="small muted">Je vordering staat alleen op deze gsm. Maak af en toe een back-up en bewaar de code in een notitie of stuur ze naar jezelf. Met die code zet je alles terug, ook op een nieuwe gsm.'+(S.lastBackup?' Laatste back-up: '+fmtDay(S.lastBackup)+'.':'')+'</p>';
+  if(b.code){ h+='<textarea id="bkout" class="code" readonly rows="4">'+esc(b.code)+'</textarea><div class="row"><button type="button" class="btn green grow" data-act="bkCopy">Kopieer code</button>'+(navigator.share?'<button type="button" class="btn grow" data-act="bkShare">Deel</button>':'')+'</div>'+(b.msg?'<p class="small" role="status">'+esc(b.msg)+'</p>':''); }
+  else h+='<button type="button" class="btn green" data-act="bkMake">Maak back-up</button>';
+  h+='<div class="stack" style="gap:8px;border-top:1px solid var(--line);padding-top:12px"><label class="f" for="bkin">Back-up terugzetten<textarea id="bkin" class="code" rows="3" placeholder="Plak hier je back-upcode (begint met JX)">'+esc(b.input||'')+'</textarea></label>';
+  if(ui.confirm==='restore') h+='<p class="small"><strong>Dit vervangt je huidige vordering op deze gsm.</strong></p><div class="row"><button type="button" class="btn grow" data-act="cancel">Annuleer</button><button type="button" class="btn primary grow" data-act="bkRestore">Ja, zet terug</button></div>';
+  else h+='<button type="button" class="btn" data-act="bkAsk">Zet terug</button>';
+  if(b.err) h+='<p class="small" style="color:var(--bad)" role="alert">'+esc(b.err)+'</p>';
+  return h+'</div></section>'; }
 
 /* ---------- Eerste keer ---------- */
 function vSetup(){ var sx=ui.setupExam||(S.examDate==='2027-05-29'?'mei':S.examDate==='2027-04-24'?'april':'ander');
@@ -677,6 +699,12 @@ var A={
   flags:function(){ go({name:'flags'}); },
   bronnen:function(){ go({name:'bronnen'}); },
   askReset:function(){ readSettings(); ui.confirm='reset'; render(); },
+  bkMake:function(){ makeBackup().then(function(code){ S.lastBackup=today(); save(); ui.bk={code:code,input:(ui.bk||{}).input}; render(); var el=document.getElementById('backup'); if(el&&el.scrollIntoView) el.scrollIntoView({block:'start'}); }); },
+  bkCopy:function(){ var code=(ui.bk||{}).code||''; function sel(){ var t=document.getElementById('bkout'); if(t){ t.focus(); t.select(); } ui.bk.msg='Selecteer de code en kopieer ze zelf.'; }
+    try{ navigator.clipboard.writeText(code).then(function(){ ui.bk.msg='Gekopieerd. Plak de code in een notitie of bericht aan jezelf.'; render(); },function(){ sel(); render(); sel(); }); }catch(e){ sel(); } },
+  bkShare:function(){ try{ navigator.share({title:'Jachtexamen back-up',text:(ui.bk||{}).code||''}).catch(function(){}); }catch(e){} },
+  bkAsk:function(){ var t=document.getElementById('bkin'); ui.bk=ui.bk||{}; ui.bk.input=t?t.value:''; ui.bk.err=''; if(!ui.bk.input.trim()){ ui.bk.err='Plak eerst je back-upcode in het vak.'; render(); return; } ui.confirm='restore'; render(); },
+  bkRestore:function(){ var b=ui.bk||{}; ui.confirm=null; readBackup(b.input).then(function(st){ S=st; S.setup=true; save(); ui.bk={msg:''}; ui.tab='vandaag'; ui.view=null; ENTER=true; render(); toTop(); },function(){ b.err='Deze code werkt niet. Kopieer de volledige code, vanaf JX tot het einde.'; ui.bk=b; render(); }); },
   setupExam:function(d){ readSetup(); ui.setupExam=d.x; render(); },
   setupGoal:function(d){ readSetup(); S.goal=+d.g; render(); },
   setupDone:function(){ readSetup(); S.setup=true; ui.setupExam=null; save(); clearTimeout(cloud.timer); push(); ui.tab='vandaag'; ui.view=null; render(); toTop(); },
