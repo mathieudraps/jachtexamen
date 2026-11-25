@@ -138,6 +138,12 @@ figure.photo figcaption{font-size:.8125rem;color:var(--ink-2);padding:6px 10px}
 .scale > i.fail{background:var(--bad)}
 .scale > s{position:absolute;top:-6px;bottom:-6px;width:2px;background:var(--ink)}
 .scale > em{position:absolute;top:-24px;transform:translateX(-50%);font-style:normal;font-size:.75rem;color:var(--ink-2);white-space:nowrap}
+.pnum{width:30px;height:30px;border-radius:50%;flex:none;display:grid;place-items:center;font-family:var(--display);font-weight:700;background:var(--surface-2);color:var(--ink-2);font-variant-numeric:tabular-nums}
+.pnum.done{background:var(--good);color:var(--surface)}
+.pnum.now{background:var(--accent);color:var(--accent-ink)}
+.item .eyebrow{color:var(--vk)}
+.nowcard{background:var(--vks);gap:8px}
+.nowcard .eyebrow{color:var(--vk)}
 .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px 8px;text-align:center}
 .stat{display:flex;flex-direction:column;gap:2px;min-width:0}
 .stat b{font-family:var(--display);font-size:1.7rem;line-height:1;color:var(--green)}
@@ -287,8 +293,15 @@ D.questions.forEach(function(q){ var m=MOD[q.m]; if(!m) return; q.vak=m.vak; CAR
 D.images.forEach(function(im){ IMG[im.key]=im; var c={id:'img:'+im.key,img:im.key,vak:im.group==='wapens'?3:2,group:im.group}; CARDS[c.id]=c; IMGCARDS.push(c); });
 var ALL=Object.keys(CARDS).map(function(k){return CARDS[k];});
 /* leerpad: wissel de vakken af (fauna, wet, fauna, wapens) */
-var PATH=(function(){ var q={1:[],2:[],3:[]}; LESSONS.forEach(function(l){q[l.vak].push(l);}); var pat=[2,1,2,3], out=[], i=0, guard=0;
-  while((q[1].length||q[2].length||q[3].length)&&guard<5000){ var v=pat[i%4]; i++; guard++; if(q[v].length) out.push(q[v].shift()); } return out; })();
+var CURR=[
+  {n:'De basis',d:'Wat is jagen, welk wild is er, en hoe ga je veilig met een geweer om.',m:['wet-basis','fauna-haarwild','wapens-veiligheid','fauna-grofwild']},
+  {n:'Het wild leren kennen',d:'Vederwild, roofdieren, waterwild en het hagelgeweer.',m:['fauna-vederwild','fauna-predatoren','wapens-hagel','fauna-waterwild']},
+  {n:'Jagen in de praktijk',d:'Wanneer en hoe je mag jagen, de buks, sporen en schade.',m:['wet-seizoenen','wapens-kogel','fauna-sporen','wet-voorwaarden','fauna-roofvogels']},
+  {n:'Regels en beheer',d:'Administratie, wapenwet, wildbeheer en soortenbescherming.',m:['wet-administratie','wet-wapens','fauna-ecologie','wet-natuur']}];
+(function(){ var used={}; CURR.forEach(function(e){ e.m=e.m.filter(function(id){ if(MOD[id]&&!used[id]){ used[id]=1; return true; } return false; }); });
+  var rest=D.modules.filter(function(m){return !used[m.id];}).map(function(m){return m.id;}); if(rest.length) CURR.push({n:'Extra',d:'',m:rest}); })();
+var MODORDER=[]; CURR.forEach(function(e){ e.m.forEach(function(id){ MODORDER.push(id); }); });
+var PATH=[]; MODORDER.forEach(function(id){ MOD[id].lessons.forEach(function(l){ PATH.push(l); }); });
 
 /* ---------- helpers ---------- */
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
@@ -424,13 +437,16 @@ function vVandaag(){ var p=plan(), ss=steps(), nx=nextStep(), st=streak(), nd=ss
   return h; }
 
 /* ---------- Leren ---------- */
-function vLeren(){ var h=head('Leren','Lessen per vak');
-  h+='<button type="button" class="card" data-act="gids" style="text-align:left;cursor:pointer"><div class="row"><div class="grow"><h2>Fotogids</h2><p class="small muted">'+(IMGCARDS.length?IMGCARDS.length+' foto’s: wild, vogels, sporen, uitwerpselen, munitie en honden':'De foto’s worden binnenkort toegevoegd')+'</p></div><span class="chev">&rarr;</span></div></button>';
-  [1,2,3].forEach(function(v){ var mods=D.modules.filter(function(m){return m.vak===v;}); if(!mods.length) return;
-    h+='<section class="card vk'+v+'"><div class="vakhead">'+badge(v)+'<div><p class="eyebrow">Vak '+v+' · '+VAK[v].ex+' examenvragen</p><h2>'+VAK[v].n+'</h2></div></div><div class="list">';
-    mods.forEach(function(m){ var rd=m.lessons.filter(function(l){return S.lessons[l.id];}).length, qs=TEXTQ.filter(function(q){return q.m===m.id;}), ms=mastery(qs);
-      h+='<button type="button" class="item" data-act="module" data-id="'+esc(m.id)+'">'+ring(ms.n?ms.m/ms.n:0,40,4,'var(--vk)','var(--vks)','<b>'+pct(ms.m,ms.n)+'</b>')+'<div class="grow"><h3>'+esc(m.title)+'</h3><p class="small muted num">'+rd+'/'+m.lessons.length+' lessen gelezen · '+ms.m+'/'+ms.n+' vragen beheerst</p></div><span class="chev">&rarr;</span></button>'; });
+function vLeren(){ var h=head('Leren','Je leerpad'), nl_=nextLesson(), cur=nl_?nl_.m:null, num=0;
+  var doneM=MODORDER.filter(function(id){ return MOD[id].lessons.every(function(l){return S.lessons[l.id];}); }).length;
+  h+='<p class="muted">Van makkelijk naar moeilijk, in '+CURR.length+' etappes. Je dagsessie volgt deze volgorde vanzelf. <span class="num">'+doneM+' van '+MODORDER.length+'</span> modules af.</p>';
+  if(cur){ var cm=MOD[cur]; h+='<button type="button" class="card vk'+cm.vak+' nowcard" data-act="lesson" data-id="'+esc(nl_.id)+'"><p class="eyebrow">Volgende les</p><div class="vakhead">'+badge(cm.vak)+'<div style="min-width:0"><h2>'+esc(nl_.title)+'</h2><p class="small muted">'+esc(cm.title)+' · '+(nl_.minutes||5)+' min</p></div></div></button>'; }
+  CURR.forEach(function(e,ei){
+    h+='<section class="card"><div><p class="eyebrow">Etappe '+(ei+1)+'</p><h2>'+esc(e.n)+'</h2>'+(e.d?'<p class="small muted">'+esc(e.d)+'</p>':'')+'</div><div class="list">';
+    e.m.forEach(function(id){ var m=MOD[id]; num++; var rd=m.lessons.filter(function(l){return S.lessons[l.id];}).length, qs=TEXTQ.filter(function(q){return q.m===m.id;}), ms=mastery(qs), done=rd===m.lessons.length, isCur=id===cur;
+      h+='<button type="button" class="item vk'+m.vak+(isCur?' cur':'')+'" data-act="module" data-id="'+esc(m.id)+'"><span class="pnum'+(done?' done':isCur?' now':'')+'">'+(done?'&#10003;':num)+'</span><div class="grow"><p class="eyebrow" style="font-size:.72rem">'+esc(VAK[m.vak].n)+(isCur?' · nu bezig':'')+'</p><h3>'+esc(m.title)+'</h3><p class="small muted num">'+rd+'/'+m.lessons.length+' lessen · '+pct(ms.m,ms.n)+'% beheerst</p></div>'+ring(ms.n?ms.m/ms.n:0,36,4,'var(--vk)','var(--vks)','')+'</button>'; });
     h+='</div></section>'; });
+  h+='<button type="button" class="card" data-act="gids"><div class="row"><div class="grow"><h2>Fotogids</h2><p class="small muted">'+(IMGCARDS.length?IMGCARDS.length+' foto’s: wild, vogels, sporen, uitwerpselen, munitie en honden':'De foto’s worden binnenkort toegevoegd')+'</p></div><span class="chev">&rarr;</span></div></button>';
   return h; }
 function vModule(v){ var m=MOD[v.id], qs=TEXTQ.filter(function(q){return q.m===m.id;});
   var rdm=m.lessons.filter(function(l){return S.lessons[l.id];}).length;
