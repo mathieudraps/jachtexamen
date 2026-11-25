@@ -103,7 +103,7 @@ table{border-collapse:collapse;width:100%;font-size:.9375rem}
 th,td{text-align:left;padding:8px 10px;border-top:1px solid var(--line);vertical-align:top}
 thead th{border-top:0;font-family:var(--display);letter-spacing:.06em;text-transform:uppercase;font-size:.8rem;color:var(--ink-2)}
 figure.photo{border-radius:12px;overflow:hidden;background:var(--surface-2);border:1px solid var(--line)}
-figure.photo img{display:block;width:100%;max-height:340px;object-fit:contain;background:var(--surface-2)}
+figure.photo img{display:block;width:100%;aspect-ratio:4/3;height:auto;max-height:340px;object-fit:contain;background:var(--surface-2)}
 figure.photo figcaption{font-size:.8125rem;color:var(--ink-2);padding:6px 10px}
 
 /* quiz */
@@ -146,7 +146,7 @@ figure.photo figcaption{font-size:.8125rem;color:var(--ink-2);padding:6px 10px}
 .nowcard{background:var(--vks);gap:8px}
 .nowcard .eyebrow{color:var(--vk)}
 textarea.code{font:.8rem/1.4 ui-monospace,Menlo,Consolas,monospace;color:var(--ink);background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:10px;width:100%;resize:vertical;word-break:break-all}
-.fbimgs{display:grid;gap:8px;grid-template-columns:1fr}
+.fbimgs{display:grid;gap:8px;grid-template-columns:1fr;max-width:520px}
 .fbimgs.two{grid-template-columns:1fr 1fr}
 .fbimgs figure{margin:0;background:var(--surface);border-radius:10px;overflow:hidden;min-width:0}
 .fbimgs img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;background:var(--surface-2)}
@@ -365,6 +365,37 @@ nav.tabs button.on svg{transform:translateY(-1px)}
 @keyframes shake{0%,100%{transform:none}20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(3px)}}
 @keyframes flick{from{transform:scale(1) rotate(-3deg)}to{transform:scale(1.08) rotate(3deg)}}
 @media (prefers-reduced-motion:no-preference){ .bar > i,.scale > i{transition:width .35s ease} }
+
+/* ---- computer: zijbalk, bredere inhoud, hover ---- */
+.kbdhint{display:none}
+@media (hover:hover) and (pointer:fine){
+  .kbdhint{display:block}
+  .btn:hover{filter:brightness(1.06)}
+  .item:hover h3,.tocitem:hover{color:var(--accent)}
+  button.card:hover,.tile:hover{box-shadow:0 0 0 2px var(--green),var(--shadow)}
+  .opt:not([disabled]):hover{border-color:var(--green)}
+  nav.tabs button:hover{color:var(--ink)}
+}
+@media (min-width:900px){
+  body{flex-direction:row}
+  nav.tabs{order:-1;width:240px;border-top:0;border-right:1px solid var(--line);padding:28px 14px;display:flex;flex-direction:column;gap:18px}
+  nav.tabs::before{content:"Jachtexamen Trainer";font-family:var(--display);font-weight:700;font-size:1.4rem;line-height:1.1;color:var(--green);padding:0 12px}
+  nav.tabs > div{display:flex;flex-direction:column;gap:4px;max-width:none;margin:0}
+  nav.tabs button{flex-direction:row;justify-content:flex-start;gap:12px;font-size:.98rem;min-height:48px;padding:10px 12px;border-radius:12px}
+  nav.tabs button.on::before{top:0;left:0;width:100%;height:100%;border-radius:12px}
+  nav.tabs.fbar .backbar{justify-content:flex-start;min-height:48px;font-size:.98rem}
+  #app{max-width:860px;padding-block:32px 56px;padding-left:44px;padding-right:44px}
+  #app.focus{padding-block:28px 56px}
+  .band{margin-top:-32px;margin-left:-44px;margin-right:-44px;padding:30px 44px 32px}
+  .band h1{font-size:2.8rem}
+  .atlas{grid-template-columns:repeat(3,1fr)}
+  .gal{grid-template-columns:repeat(4,1fr)}
+  .fbimgs.two img{aspect-ratio:4/3}
+  .lesson,.clesson{font-size:1.06rem}
+  figure.photo img{max-height:420px}
+  .qtext{font-size:1.35rem}
+}
+@media (min-width:1280px){ .atlas{grid-template-columns:repeat(4,1fr)} }
 </style>
 
 <div id="splash" aria-hidden="true"><div class="logo"><svg class="stage" viewBox="0 0 320 250"><g class="reeds" fill="none" stroke-linecap="round"><path d="M14 250 Q22 200 16 158 M34 250 Q40 205 46 168 M304 250 Q296 206 300 176 M288 250 Q284 214 276 192" stroke="#7FA37A" stroke-width="3"/><g fill="#8A5A34"><rect x="12.5" y="146" width="7" height="22" rx="3.5"/><rect x="42.5" y="156" width="7" height="20" rx="3.5"/><rect x="296.5" y="164" width="7" height="20" rx="3.5"/></g></g><g class="fly"><g class="fall"><g class="duck" transform="scale(1.7)"><path d="M-19 -3 L-33 -10 L-30 3 Z" fill="#3A3F44"/><ellipse rx="23" ry="12.5" fill="#B9C0C4"/><ellipse cx="11" cy="2" rx="11" ry="9" fill="#7B4A2E"/><path d="M13 -6 Q17 -11 19 -13" stroke="#FFFFFF" stroke-width="3" fill="none"/><circle cx="22" cy="-15" r="8.5" fill="#2F7A4A"/><path d="M29.5 -16 L40 -12.5 L29.5 -10 Z" fill="#F2B530"/><g class="eye-alive"><circle cx="24.5" cy="-17" r="2.2" fill="#FFFFFF"/><circle cx="25.2" cy="-17" r="1.1" fill="#111111"/></g><path class="eye-dead" d="M22.6 -19.2 l3.8 3.8 M26.4 -19.2 l-3.8 3.8" stroke="#111111" stroke-width="1.7" stroke-linecap="round"/><path class="wing" d="M-13 -5 Q-3 -30 13 -6 Z" fill="#8E979C"/></g></g></g><g transform="translate(160 112)"><g class="feathers"><path class="fe fe1" d="M0 -6 Q3.5 0 0 6 Q-3.5 0 0 -6Z" fill="#EEF1F2"/><path class="fe fe2" d="M0 -6 Q3.5 0 0 6 Q-3.5 0 0 -6Z" fill="#B9C0C4"/><path class="fe fe3" d="M0 -6 Q3.5 0 0 6 Q-3.5 0 0 -6Z" fill="#2F7A4A"/><path class="fe fe4" d="M0 -6 Q3.5 0 0 6 Q-3.5 0 0 -6Z" fill="#EEF1F2"/><path class="fe fe5" d="M0 -6 Q3.5 0 0 6 Q-3.5 0 0 -6Z" fill="#7B4A2E"/><path class="fe fe6" d="M0 -6 Q3.5 0 0 6 Q-3.5 0 0 -6Z" fill="#B9C0C4"/><path class="fe fe7" d="M0 -6 Q3.5 0 0 6 Q-3.5 0 0 -6Z" fill="#EEF1F2"/></g></g><circle class="flash" cx="160" cy="112" r="40" fill="#FFE7A8"/><g class="scope" fill="none" stroke="#FFFFFF" stroke-linecap="round"><circle r="46" stroke-width="3"/><path d="M0 -62 V-18 M0 18 V62 M-62 0 H-18 M18 0 H62" stroke-width="2.6"/><circle r="3.2" fill="#FF7A3D" stroke="none"/></g><text class="pang" x="160" y="58" text-anchor="middle">PANG!</text></svg><div class="t">Jachtexamen Trainer</div><div class="s">Raak! Tijd om te oefenen</div></div></div>
@@ -614,7 +645,7 @@ function vRun(){ var r=ui.run, it=r.items[r.i], isRetry=r.i>=r.n, done=r.picked!
   h+='<h2 class="qtext">'+esc(it.q)+'</h2><div class="opts">';
   it.opts.forEach(function(o,i){ var cls=''; if(done){ if(o.ok) cls=' ok'; else if(i===r.picked) cls=' no'; }
     h+='<button type="button" class="opt'+cls+'" data-act="pick" data-i="'+i+'"'+(done?' disabled':'')+'><span class="k">'+'ABC'[i]+'</span><span class="t">'+esc(o.t)+'</span></button>'; });
-  h+='</div>';
+  h+='</div>'+(done?'':'<p class="small muted kbdhint">Toetsen: 1, 2 of 3 om te antwoorden, daarna Enter.</p>');
   if(done){ var ok=it.opts[r.picked].ok;
     h+='<div class="fb '+(ok?'ok':'no')+'" id="fb"><span class="v">'+(ok?'Juist':'Fout')+'</span>'+(it.e?'<p>'+rich(it.e)+'</p>':'')+(it.c.img?'':fbPhotos(it.c.p))+(it.s?'<p class="small muted">Bron: '+esc(it.s)+'</p>':'')+'</div>';
     h+='<button type="button" class="btn primary" data-act="next" id="nextbtn">'+(r.i+1<r.items.length?'Volgende':'Afronden')+'</button>';
@@ -705,7 +736,7 @@ function vExamRun(){ var e=ui.exam, it=e.items[e.i], n=e.items.length, answered=
   if(it.c.img) h+=photo(it.c.img,false);
   h+='<h2 class="qtext">'+esc(it.q)+'</h2><div class="opts">';
   it.opts.forEach(function(o,i){ h+='<button type="button" class="opt'+(e.ans[e.i]===i?' sel':'')+'" data-act="examPick" data-i="'+i+'" aria-pressed="'+(e.ans[e.i]===i)+'"><span class="k">'+'ABC'[i]+'</span><span class="t">'+esc(o.t)+'</span></button>'; });
-  h+='</div><p class="small muted">Tik een gekozen antwoord opnieuw aan om het blanco te laten.</p>';
+  h+='</div><p class="small muted">Tik een gekozen antwoord opnieuw aan om het blanco te laten.<span class="kbdhint">Toetsen: 1, 2 of 3 om te kiezen, pijltjes links en rechts om te bladeren.</span></p>';
   h+='<div class="examnav"><button type="button" class="btn" data-act="examGo" data-i="'+(e.i-1)+'"'+(e.i?'':' disabled')+'>Vorige</button><button type="button" class="btn" data-act="examFlag">'+(e.flag[e.i]?'Markering weg':'Markeer')+'</button>'+(e.i+1<n?'<button type="button" class="btn green" data-act="examGo" data-i="'+(e.i+1)+'">Volgende</button>':'<button type="button" class="btn primary" data-act="askSubmit">Indienen</button>')+'</div>';
   return h; }
 function examSubmit(){ var e=ui.exam; if(!e||e.done) return; e.done=true; clearInterval(examTick); ui.confirm=null;
@@ -862,6 +893,15 @@ function readSettings(){ var a=document.getElementById('examDate'), b=document.g
 function keepInputs(){ readSettings(); render(); }
 document.addEventListener('click',function(ev){ var t=ev.target.closest('[data-act]'); if(!t||t.disabled) return; var f=A[t.dataset.act]; if(f) f(t.dataset,t); });
 var cqT=null; document.addEventListener('input',function(ev){ if(ev.target&&ev.target.id==='csearch'){ ui.cq=ev.target.value; clearTimeout(cqT); cqT=setTimeout(function(){ var b=document.getElementById('cbody'); if(b) b.innerHTML=cursusBody(ui.cq); },220); } });
+document.addEventListener('keydown',function(ev){ var tg=ev.target, tn=tg&&tg.tagName; if(tn==='INPUT'||tn==='TEXTAREA'||tn==='SELECT'||ev.metaKey||ev.ctrlKey||ev.altKey) return;
+  var k=ev.key, n={'1':0,'2':1,'3':2,'a':0,'b':1,'c':2,'A':0,'B':1,'C':2}[k], v=ui.view;
+  if(v&&v.name==='run'&&ui.run){ if(ui.run.picked===null&&n!==undefined){ ev.preventDefault(); pick(n); return; } if(ui.run.picked!==null&&(k==='Enter'||k===' '||k==='ArrowRight')){ ev.preventDefault(); nextQ(); return; } }
+  if(v&&v.name==='runEnd'&&(k==='Enter'||k===' ')){ ev.preventDefault(); A.endRun(); return; }
+  if(v&&v.name==='exam'&&ui.exam&&!ui.exam.done&&!ui.exam.grid&&ui.confirm!=='submit'){ var e=ui.exam;
+    if(n!==undefined){ ev.preventDefault(); A.examPick({i:String(n)}); return; }
+    if(k==='ArrowRight'&&e.i+1<e.items.length){ ev.preventDefault(); A.examGo({i:String(e.i+1)}); return; }
+    if(k==='ArrowLeft'&&e.i>0){ ev.preventDefault(); A.examGo({i:String(e.i-1)}); return; } }
+  if(k==='Escape'&&v&&BACKV[v.name]){ A.back(); return; } });
 document.addEventListener('keydown',function(ev){ if(ev.key==='Enter'&&ev.target&&ev.target.id==='nick'){ A.saveNick(); } });
 
 (function splash(){ var el=document.getElementById('splash'); if(!el) return; var rm=false; try{ rm=matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(e){}
