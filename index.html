@@ -146,6 +146,13 @@ figure.photo figcaption{font-size:.8125rem;color:var(--ink-2);padding:6px 10px}
 .nowcard{background:var(--vks);gap:8px}
 .nowcard .eyebrow{color:var(--vk)}
 textarea.code{font:.8rem/1.4 ui-monospace,Menlo,Consolas,monospace;color:var(--ink);background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:10px;width:100%;resize:vertical;word-break:break-all}
+.fbimgs{display:grid;gap:8px;grid-template-columns:1fr}
+.fbimgs.two{grid-template-columns:1fr 1fr}
+.fbimgs figure{margin:0;background:var(--surface);border-radius:10px;overflow:hidden;min-width:0}
+.fbimgs img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;background:var(--surface-2)}
+.fbimgs.two img{aspect-ratio:1}
+.fbimgs figcaption{padding:6px 8px;font-size:.78rem;line-height:1.3;display:flex;flex-direction:column;gap:2px;color:var(--ink)}
+.fbimgs figcaption span{color:var(--ink-2)}
 .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px 8px;text-align:center}
 .stat{display:flex;flex-direction:column;gap:2px;min-width:0}
 .stat b{font-family:var(--display);font-size:1.7rem;line-height:1;color:var(--green)}
@@ -525,7 +532,7 @@ function vRun(){ var r=ui.run, it=r.items[r.i], isRetry=r.i>=r.n, done=r.picked!
     h+='<button type="button" class="opt'+cls+'" data-act="pick" data-i="'+i+'"'+(done?' disabled':'')+'><span class="k">'+'ABC'[i]+'</span><span class="t">'+esc(o.t)+'</span></button>'; });
   h+='</div>';
   if(done){ var ok=it.opts[r.picked].ok;
-    h+='<div class="fb '+(ok?'ok':'no')+'" id="fb"><span class="v">'+(ok?'Juist':'Fout')+'</span>'+(it.e?'<p>'+rich(it.e)+'</p>':'')+(it.s?'<p class="small muted">Bron: '+esc(it.s)+'</p>':'')+'</div>';
+    h+='<div class="fb '+(ok?'ok':'no')+'" id="fb"><span class="v">'+(ok?'Juist':'Fout')+'</span>'+(it.e?'<p>'+rich(it.e)+'</p>':'')+(it.c.img?'':fbPhotos(it.c.p))+(it.s?'<p class="small muted">Bron: '+esc(it.s)+'</p>':'')+'</div>';
     h+='<button type="button" class="btn primary" data-act="next" id="nextbtn">'+(r.i+1<r.items.length?'Volgende':'Afronden')+'</button>';
     h+='<button type="button" class="linkbtn" data-act="flag" data-id="'+esc(it.c.id)+'">'+(S.flags[it.c.id]?'Gemarkeerd om na te kijken (tik om te wissen)':'Twijfel je aan deze vraag? Markeer ze')+'</button>'; }
   return h; }
@@ -541,6 +548,9 @@ function vRunEnd(){ var r=ui.run, p=pct(r.ok,r.n);
   var nx=(ui.chain&&!r.back)?nextStep():null;
   h+='<button type="button" class="btn primary" data-act="endRun">'+(nx?'Verder: '+(nx.k==='rev'?'herhaling':nx.k==='les'?'nieuwe les':'foto\u2019s'):'Klaar')+'</button>';
   return h; }
+
+function fbPhotos(keys){ keys=(keys||[]).filter(function(k){return IMG[k];}); if(!keys.length) return '';
+  return '<div class="fbimgs'+(keys.length>1?' two':'')+'">'+keys.map(function(k){ var im=IMG[k]; return '<figure><img src="'+esc(im.file)+'" alt="'+esc(im.name)+'" loading="lazy" onerror="this.parentNode.hidden=true"><figcaption><strong>'+esc((im.label||im.name).replace(/^(een|de|het) /,''))+'</strong>'+(im.hint?'<span>'+esc(im.hint)+'</span>':'')+'</figcaption></figure>'; }).join('')+'</div>'; }
 
 /* ---------- Oefenen ---------- */
 function vOefenen(){ var w=weak(), seenQ=ALL.filter(function(c){return seen(c.id);});
@@ -618,7 +628,7 @@ function vExamEnd(){ var e=ui.exam, r=e.res, w=Math.max(0,Math.min(100,r.score/6
   h+='</div>';
   if(typeof e.rv==='number'){ var it=e.items[e.rv], a=e.ans[e.rv]; h+='<div class="stack" id="rv">'+(it.c.img?photo(it.c.img,false):'')+'<h3>'+(e.rv+1)+'. '+esc(it.q)+'</h3><div class="opts">';
     it.opts.forEach(function(o,i){ h+='<div class="opt'+(o.ok?' ok':i===a?' no':'')+'"><span class="k">'+'ABC'[i]+'</span><span class="t">'+esc(o.t)+(i===a?' (jouw antwoord)':'')+'</span></div>'; });
-    h+='</div>'+(a===null?'<p class="small muted">Blanco gelaten.</p>':'')+(it.e?'<p class="small">'+rich(it.e)+'</p>':'')+(it.s?'<p class="small muted">Bron: '+esc(it.s)+'</p>':'')+'</div>'; }
+    h+='</div>'+(a===null?'<p class="small muted">Blanco gelaten.</p>':'')+(it.e?'<p class="small">'+rich(it.e)+'</p>':'')+(it.c.img?'':fbPhotos(it.c.p))+(it.s?'<p class="small muted">Bron: '+esc(it.s)+'</p>':'')+'</div>'; }
   h+='</section><button type="button" class="btn primary" data-act="examClose">Klaar</button>';
   return h; }
 
