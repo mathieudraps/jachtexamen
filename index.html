@@ -224,6 +224,28 @@ nav.tabs button{font-size:.68rem}
 .gside .xp{font-family:var(--display);font-weight:700;font-size:1.3rem}
 .gside .flame{font-size:.95rem}
 .gside .flame svg{width:18px;height:18px}
+.botfab{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(74px + env(safe-area-inset-bottom,0px));z-index:6;display:flex;align-items:center;gap:8px;border:0;border-radius:999px;padding:12px 16px;background:var(--accent);color:var(--accent-ink);font-weight:700;box-shadow:0 8px 20px -6px rgba(0,0,0,.35)}
+.botfab svg{width:22px;height:22px}
+@media (min-width:900px){ .botfab{bottom:28px;right:32px} }
+.bothead{display:flex;gap:14px;align-items:flex-start}
+.botav{width:52px;height:52px;border-radius:16px;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;flex:none}
+.botav svg{width:30px;height:30px}
+.botlog{display:flex;flex-direction:column;gap:12px}
+.bmsg{border-radius:16px;padding:12px 14px;display:flex;flex-direction:column;gap:10px;max-width:100%;min-width:0}
+.bmsg.bot{background:var(--surface);box-shadow:var(--shadow);border-top-left-radius:4px}
+.bmsg.me{background:var(--green);color:var(--bg);align-self:flex-end;border-top-right-radius:4px;max-width:85%}
+.bmsg ul{padding-left:1.2em;margin:0;display:flex;flex-direction:column;gap:4px}
+.bpass{display:flex;flex-direction:column;gap:8px;padding-left:10px;border-left:3px solid var(--vk,var(--line))}
+.bpass + .bpass{margin-top:6px}
+.bsrc{font-size:.78rem;color:var(--ink-2)}
+.bsrc .linkbtn{padding:0;min-height:0;font-size:.78rem;color:var(--vk,var(--green))}
+.bmsg .linkbtn{min-height:0;padding:0}
+.botchip{border:1px solid var(--line);background:var(--surface-2);cursor:pointer;text-align:left;font-weight:500}
+.botform{display:flex;gap:8px;position:sticky;bottom:0;padding-block:10px 4px;background:var(--bg)}
+.botform input{flex:1;min-width:0;font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:0 14px;min-height:52px}
+.botform .btn{min-width:56px;padding:0 14px;display:grid;place-items:center}
+.botform .btn svg{width:22px;height:22px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px 8px;text-align:center}
 .stat{display:flex;flex-direction:column;gap:2px;min-width:0}
 .stat b{font-family:var(--display);font-size:1.7rem;line-height:1;color:var(--green)}
@@ -607,7 +629,7 @@ function go(view){ ui.view=view; ui.confirm=null; ENTER=true; render(); toTop();
 function setTab(t){ ui.chain=false; ui.tab=t; if(t==='klassement'||t==='vandaag') setTimeout(groupFresh,0); ui.view=null; ui.confirm=null; try{ if(location.hash!=='#'+t) location.hash=t; }catch(e){} ENTER=true; render(); toTop(); }
 window.addEventListener('hashchange',function(){ var h=location.hash.replace('#',''); if(TABS.some(function(t){return t[0]===h;})&&h!==ui.tab&&!ui.run&&!ui.exam){ ui.tab=h; ui.view=null; render(); } });
 
-var BACKV={lesson:1,module:1,gids:1,groep:1,settings:1,flags:1,bronnen:1};
+var BACKV={lesson:1,module:1,gids:1,groep:1,settings:1,flags:1,bronnen:1,bot:1};
 function focusBar(v){ if(!v) return '';
   if(BACKV[v.name]) return '<button type="button" class="backbar" data-act="back">'+svg('<path d="M15 5l-7 7 7 7"/>')+'<span>Terug</span></button>';
   if(v.name==='run') return '<button type="button" class="backbar" data-act="quit">'+svg('<path d="M6 6l12 12M18 6L6 18"/>')+'<span>Stop met deze ronde</span></button>';
@@ -619,7 +641,7 @@ function render(){ var focus=!!ui.view, en=ENTER; ENTER=false; app.className=(fo
   var v=ui.view, html;
   if(!S.setup&&!(v&&v.name==='bronnen')){ app.className='focus'+(en?' enter':''); tabs.hidden=true; app.innerHTML=vSetup(); return; }
   if(!v){ html={vandaag:vVandaag,leren:vLeren,cursus:vCursus,oefenen:vOefenen,examen:vExamen,klassement:vKlassement}[ui.tab](); }
-  else html={module:vModule,lesson:vLesson,run:vRun,runEnd:vRunEnd,exam:vExamRun,examEnd:vExamEnd,gids:vGids,groep:vGroep,settings:vSettings,bronnen:vBronnen,flags:vFlags}[v.name](v);
+  else html={module:vModule,lesson:vLesson,run:vRun,runEnd:vRunEnd,exam:vExamRun,examEnd:vExamEnd,gids:vGids,groep:vGroep,settings:vSettings,bronnen:vBronnen,flags:vFlags,bot:vBot}[v.name](v);
   app.innerHTML=html;
   var fb=focus&&S.setup?focusBar(v):'';
   if(fb){ tabs.firstElementChild.innerHTML=fb; tabs.classList.add('fbar'); tabs.hidden=false; } else tabs.classList.remove('fbar'); }
@@ -701,8 +723,65 @@ function cursusBody(q){ q=(q||'').trim().toLowerCase(); var h='';
       h+='<section class="cmod"><h3 class="ltitle">'+esc(GROUPS[g])+'</h3><div class="atlas">'+cs.map(function(c){ var im=IMG[c.img]; return '<figure><img src="'+esc(im.file)+'" alt="'+esc(im.name)+'" loading="lazy"><figcaption><strong>'+esc((im.label||im.name).replace(/^(een|de|het) /,''))+'</strong>'+(im.hint?'<span>'+esc(im.hint)+'</span>':'')+'</figcaption></figure>'; }).join('')+'</div></section>'; });
     h+='<button type="button" class="linkbtn" data-act="ctop">↑ Naar de inhoud</button>'; }
   return h; }
+/* ---------- Jachtbot: zoekt antwoorden in de lessen en de oefenvragen (geen server, werkt offline) ---------- */
+var BOT=null;
+var STOP={};'de het een en of van in op te is zijn was wat wie welke welk hoe waar wanneer waarom mag mogen moet moeten kan kunnen je jij ik mij me we wij u zij ze hij dat die dit deze voor met aan bij om als er niet wel ook al nog dan maar over tot uit naar door heeft hebben wordt worden word zo veel hoeveel hoelang lang graag eens even toch nu vertel leg uit uitleg weet weten iets ding dingen precies eigenlijk vraag vragen jachtbot bot dag hallo hoi ten toegelaten toegestaan gebruiken gebruikt nodig belangrijk'.split(' ').forEach(function(w){ STOP[w]=1; });
+var SYN={dracht:'draagtijd',draagt:'draagtijd',zwanger:'draagtijd',drachtig:'draagtijd',paartijd:'bronst',paring:'bronst',paren:'bronst',ranstijd:'bronst',rammeltijd:'bronst',eet:'voedsel',eten:'voedsel',voeding:'voedsel',vreet:'voedsel',jongen:'jong',jonkies:'jong',kleintjes:'jong',geweer:'wapen',geweren:'wapen',vuurwapen:'wapen',vuurwapens:'wapen',jachtgeweer:'wapen',buks:'kogelgeweer',buksen:'kogelgeweer',open:'geopend',opengaat:'geopend',seizoen:'geopend',jachtseizoen:'geopend',schieten:'jagen',bejagen:'jagen',jacht:'jagen',stront:'uitwerpselen',kak:'uitwerpselen',poep:'uitwerpselen',drol:'uitwerpselen',drollen:'uitwerpselen',keutel:'keutels',pootafdruk:'prent',voetafdruk:'prent',spoor:'prent',dik:'dikte',dikke:'dikte',dikker:['dikte','max'],dikste:['dikte','max'],diameter:'dikte',korrelgrootte:'dikte',grootste:['groot','max'],groter:'groot',maximaal:'max',maximum:'max',hoogstens:'max',minimaal:'min',minimum:'min',minstens:'min',afstand:'meter',ver:'meter',verder:'meter',woning:'woning',huis:'woning',huizen:'woning',gebouw:'woning',gebouwen:'woning',woningen:'woning'};
+function normTxt(x){ return String(x||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\*\*/g,''); }
+function stem(w){ if(SYN[w]){ if(Array.isArray(SYN[w])) return SYN[w]; w=SYN[w]; } if(/^\d/.test(w)) return w; if(w.length>5&&/en$/.test(w)) w=w.slice(0,-2); else if(w.length>4&&/[^aeiou]s$/.test(w)) w=w.slice(0,-1); else if(w.length>4&&/e$/.test(w)&&!/ee$/.test(w)) w=w.slice(0,-1); return w; }
+function toks(x){ return normTxt(x).split(/[^a-z0-9,]+/).map(function(w){ return w.replace(/,$/,''); }).filter(function(w){ return w&&w.length>1&&!STOP[w]; }).reduce(function(a,w){ return a.concat(stem(w)); },[]); }
+function botIndex(){ if(BOT) return BOT; var P=[];
+  PATH.forEach(function(l){ var m=MOD[l.m], head=l.title;
+    (l.blocks||[]).forEach(function(b){ if(b.t==='h'){ head=b.x; return; } if(b.t==='img') return;
+      var txt='', html='';
+      if(b.t==='p'||b.t==='tip'){ txt=b.x; html=(b.t==='tip'?'<div class="tip"><b class="lbl">Onthoud</b>'+rich(b.x)+'</div>':'<p>'+rich(b.x)+'</p>'); }
+      else if(b.t==='ul'){ txt=(b.x||[]).join(' . '); html='<ul>'+(b.x||[]).map(function(x){return '<li>'+rich(x)+'</li>';}).join('')+'</ul>'; }
+      else if(b.t==='table'){ (b.rows||[]).forEach(function(r){ P.push({l:l.id,m:l.m,h:head,src:'les',txt:(b.head||[]).map(function(hh,i){return hh+' '+(r[i]||'');}).join(' . '),html:'<div class="tablewrap"><table><thead><tr>'+(b.head||[]).map(function(x){return '<th>'+esc(x)+'</th>';}).join('')+'</tr></thead><tbody><tr>'+r.map(function(x){return '<td>'+rich(x)+'</td>';}).join('')+'</tr></tbody></table></div>'}); }); return; }
+      if(txt) P.push({l:l.id,m:l.m,h:head,src:'les',txt:txt,html:html}); }); });
+  TEXTQ.forEach(function(q){ P.push({l:q.l,m:q.m,h:'',src:'vraag',q:q,txt:q.q+' . '+q.o[q.a]+' . '+(q.e||''),html:'<p><strong>'+esc(q.q)+'</strong></p><p>Antwoord: <strong>'+esc(q.o[q.a])+'</strong>.'+(q.e?' '+rich(q.e):'')+'</p>'}); });
+  var df={}, tot=0;
+  P.forEach(function(p){ var lt=LESSON[p.l]?LESSON[p.l].title:''; p.tk=toks(p.txt); p.hk=toks(p.h+' '+lt+' '+(MOD[p.m]?MOD[p.m].title:'')); tot+=p.tk.length; var seenT={}; p.tk.concat(p.hk).forEach(function(t){ if(!seenT[t]){ seenT[t]=1; df[t]=(df[t]||0)+1; } }); });
+  var names=[]; D.images.forEach(function(im){ names.push({n:normTxt(im.name).replace(/^(een|de|het) /,''),k:im.key}); }); names.sort(function(a,b){ return b.n.length-a.n.length; });
+  BOT={P:P,df:df,N:P.length,avg:tot/Math.max(1,P.length),names:names}; return BOT; }
+function botSearch(q){ var B=botIndex(), qt=toks(q), uniq=[]; qt.forEach(function(t){ if(uniq.indexOf(t)<0) uniq.push(t); }); if(!uniq.length) return [];
+  var res=B.P.map(function(p){ var sc=0, hit=0;
+    uniq.forEach(function(t){ var idf=Math.log(1+(B.N-(B.df[t]||0)+0.5)/((B.df[t]||0)+0.5)), tf=0, part=false;
+      for(var i=0;i<p.tk.length;i++){ var w=p.tk[i]; if(w===t) tf+=1; else if(t.length>=4&&w.length>t.length&&w.indexOf(t)>=0) { tf+=0.5; part=true; } }
+      var inH=p.hk.indexOf(t)>=0||(t.length>=4&&p.hk.some(function(w){ return w.indexOf(t)>=0; }));
+      if(tf>0||inH){ hit++; var bm=tf>0?tf*2.2/(tf+1.2*(0.4+0.6*p.tk.length/B.avg)):0; sc+=idf*(bm+(inH?0.6:0)); } });
+    var cov=hit/uniq.length; return {p:p,s:sc*cov*cov,cov:cov}; }).filter(function(r){ return r.s>0; });
+  res.sort(function(a,b){ return b.s-a.s; }); return res.slice(0,8); }
+function botPhotos(q,txt){ var B=botIndex(), n=' '+normTxt(q)+' ', out=[]; B.names.forEach(function(x){ if(out.length<2&&n.indexOf(' '+x.n+' ')>=0&&out.indexOf(x.k)<0) out.push(x.k); });
+  if(!out.length&&txt){ var t=' '+normTxt(txt)+' '; B.names.forEach(function(x){ if(out.length<1&&x.n.length>3&&t.indexOf(' '+x.n+' ')>=0) out.push(x.k); }); } return out; }
+function botAnswer(q){ var nq=normTxt(q).trim();
+  if(/^(hallo|hoi|dag|hey|hi|goeiemorgen|goedemorgen|goedenavond)\b/.test(nq)&&nq.split(' ').length<=3) return {html:'<p>Dag! Stel gerust een vraag over de leerstof, bijvoorbeeld <em>Wat is de draagtijd van een ree?</em></p>'};
+  if(/^(bedankt|merci|dank je|dankjewel|thanks|top|ok|oke|super)\b/.test(nq)&&nq.split(' ').length<=4) return {html:'<p>Graag gedaan. Succes met studeren!</p>'};
+  var r=botSearch(q);
+  if(!r.length||r[0].s<1.2||r[0].cov<0.5) return {html:'<p>Daar vind ik niets duidelijks over in de cursus. Probeer het met andere woorden, of met de naam van een soort, wapen of wet. Bijvoorbeeld: <em>openingstijd haas</em> of <em>hagel diameter</em>.</p>',none:true};
+  var best=r[0], pick=[best], other=r.slice(1).filter(function(x){ return x.s>=best.s*0.55; });
+  for(var i=0;i<other.length&&pick.length<2;i++){ var x=other[i]; if(pick.every(function(y){ return y.p.l!==x.p.l||y.p.src!==x.p.src; })) pick.push(x); }
+  var html=pick.map(function(x){ var p=x.p, l=LESSON[p.l], m=MOD[p.m];
+    return '<div class="bpass vk'+(m?m.vak:2)+'"><p class="bsrc">'+(p.src==='vraag'?'Uit de oefenvragen':'Uit de les')+' · <button type="button" class="linkbtn" data-act="botLes" data-id="'+esc(p.l)+'">'+esc(l?l.title:'')+'</button>'+(p.src==='les'&&p.h&&p.h!==(l&&l.title)?' · '+esc(p.h):'')+'</p>'+p.html+'</div>'; }).join('');
+  var ph=botPhotos(q,pick[0].p.txt); if(ph.length) html+=fbPhotos(ph);
+  var seenL={}; pick.forEach(function(x){ seenL[x.p.l]=1; }); var more=r.filter(function(x){ if(seenL[x.p.l]) return false; seenL[x.p.l]=1; return true; }).slice(0,3);
+  if(more.length) html+='<p class="small muted">Ook interessant: '+more.map(function(x){ var l=LESSON[x.p.l]; return '<button type="button" class="linkbtn" data-act="botLes" data-id="'+esc(x.p.l)+'">'+esc(l?l.title:'')+'</button>'; }).join(', ')+'</p>';
+  return {html:html}; }
+var BOTVB=['Wat is de draagtijd van een ree?','Wanneer is de jacht op de haas open?','Hoe herken je een boommarter?','Wat is de dikste toegelaten hagel?','Hoe vervoer je een geweer?','Wat is het verschil tussen haas en konijn?'];
+function botScroll(){ var el=document.getElementById('botend'); if(el&&el.scrollIntoView) el.scrollIntoView({block:'end'}); }
+function vBot(){ var msgs=ui.botMsgs||[];
+  var h='<header class="bothead"><span class="botav">'+svg('<rect x="4" y="7" width="16" height="12" rx="3"/><path d="M12 3v4M9 12h.01M15 12h.01M9.5 15.5h5"/>')+'</span><div><p class="eyebrow">Cursus</p><h1>Jachtbot</h1><p class="small muted">Ik zoek het antwoord in de 100 lessen en 912 oefenvragen. Ik verzin niets: wat ik toon, staat letterlijk in de cursus.</p></div></header>';
+  h+='<div class="botlog" aria-live="polite">';
+  if(!msgs.length) h+='<div class="bmsg bot"><p>Waarmee kan ik je helpen? Probeer bijvoorbeeld:</p><div class="chips">'+BOTVB.map(function(v){ return '<button type="button" class="chip botchip" data-act="botAsk" data-q="'+esc(v)+'">'+esc(v)+'</button>'; }).join('')+'</div></div>';
+  msgs.forEach(function(m){ h+=m.me?'<div class="bmsg me"><p>'+esc(m.t)+'</p></div>':'<div class="bmsg bot">'+m.html+'</div>'; });
+  h+='</div><form class="botform" id="botform"><label class="sr" for="botin">Je vraag</label><input type="text" id="botin" placeholder="Stel je vraag over de leerstof" autocomplete="off" enterkeyhint="send" value=""><button type="submit" class="btn primary" aria-label="Verstuur">'+svg('<path d="M4 12l16-8-6 16-2-7z"/>')+'</button></form><span id="botend"></span>';
+  return h; }
+function botAsk(q){ q=String(q||'').trim().slice(0,200); if(!q) return; ui.botMsgs=(ui.botMsgs||[]).concat([{me:1,t:q}]); var a=botAnswer(q); ui.botMsgs.push({html:a.html}); if(ui.botMsgs.length>40) ui.botMsgs=ui.botMsgs.slice(-40); render(); setTimeout(function(){ botScroll(); var i=document.getElementById('botin'); if(i&&matchMedia('(pointer:fine)').matches) i.focus(); },30); }
+document.addEventListener('submit',function(ev){ if(ev.target&&ev.target.id==='botform'){ ev.preventDefault(); var i=document.getElementById('botin'); botAsk(i?i.value:''); } });
+
 function vCursus(){ var h=head('Cursus','Alle theorie in één document');
   h+='<p class="muted">Alle '+LESSONS.length+' lessen in de volgorde van je leerpad, met foto’s en tabellen. Handig om na te lezen of in één keer door te nemen.</p>';
+  h+='<button type="button" class="card linkcard botcta" data-act="botOpen"><span class="lc-ic">'+svg('<rect x="4" y="7" width="16" height="12" rx="3"/><path d="M12 3v4M9 12h.01M15 12h.01M9.5 15.5h5"/>')+'</span><div class="grow"><h3>Vraag het de Jachtbot</h3><p class="small muted">Stel een vraag in je eigen woorden, de bot zoekt het antwoord in de cursus.</p></div><span class="chev">&rarr;</span></button>';
+  h+='<button type="button" class="botfab" data-act="botOpen" aria-label="Vraag het de Jachtbot">'+svg('<rect x="4" y="7" width="16" height="12" rx="3"/><path d="M12 3v4M9 12h.01M15 12h.01M9.5 15.5h5"/>')+'<span>Jachtbot</span></button>';
   h+='<label class="search" for="csearch">'+svg('<circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/>')+'<input type="search" id="csearch" placeholder="Zoek in de cursus, bv. draagtijd of 150 meter" value="'+esc(ui.cq||'')+'" autocomplete="off"></label>';
   h+='<div id="cbody" class="cursus">'+cursusBody(ui.cq)+'</div>';
   return h; }
@@ -936,6 +1015,7 @@ var A={
   tab:function(d){ setTab(d.t); },
   settings:function(){ go({name:'settings'}); },
   back:function(){ var v=ui.view; if(!v){ return; }
+    if(v.name==='lesson'&&v.from==='bot'){ go({name:'bot'}); setTimeout(botScroll,30); return; }
     if(v.name==='lesson'&&v.from!=='today'){ go({name:'module',id:LESSON[v.id].m}); return; }
     if(v.name==='groep'){ go({name:'gids',from:v.from}); return; }
     if((v.name==='flags'||v.name==='bronnen')&&v.from!=='tab'){ go({name:'settings'}); return; }
@@ -1003,6 +1083,9 @@ var A={
   bkShare:function(){ try{ navigator.share({title:'Jachtexamen back-up',text:(ui.bk||{}).code||''}).catch(function(){}); }catch(e){} },
   bkAsk:function(){ var t=document.getElementById('bkin'); ui.bk=ui.bk||{}; ui.bk.input=t?t.value:''; ui.bk.err=''; if(!ui.bk.input.trim()){ ui.bk.err='Plak eerst je back-upcode in het vak.'; render(); return; } ui.confirm='restore'; render(); },
   bkRestore:function(){ var b=ui.bk||{}; ui.confirm=null; readBackup(b.input).then(function(st){ S=st; S.setup=true; save(); ui.bk={msg:''}; ui.tab='vandaag'; ui.view=null; ENTER=true; render(); toTop(); },function(){ b.err='Deze code werkt niet. Kopieer de volledige code, vanaf JX tot het einde.'; ui.bk=b; render(); }); },
+  botOpen:function(){ go({name:'bot'}); setTimeout(function(){ botScroll(); var i=document.getElementById('botin'); if(i&&matchMedia('(pointer:fine)').matches) i.focus(); },60); },
+  botAsk:function(d){ botAsk(d.q); },
+  botLes:function(d){ if(LESSON[d.id]) go({name:'lesson',id:d.id,from:'bot'}); },
   cjump:function(d){ var el=document.getElementById(d.id); if(el){ sc.scrollTop+=el.getBoundingClientRect().top-sc.getBoundingClientRect().top-8; } },
   ctop:function(){ toTop(); },
   setupExam:function(d){ readSetup(); ui.setupExam=d.x; render(); },
