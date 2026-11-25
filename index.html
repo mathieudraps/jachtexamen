@@ -213,6 +213,17 @@ textarea.code{font:.8rem/1.4 ui-monospace,Menlo,Consolas,monospace;color:var(--i
 nav.tabs button{font-size:.68rem}
 .synccode{font-family:var(--display);font-weight:700;font-size:2rem;letter-spacing:.08em;text-align:center;padding:12px;border-radius:12px;background:var(--surface-2);user-select:all;transition:background .3s}
 .synccode.copied{background:var(--good-bg);color:var(--good)}
+.grank{display:flex;flex-direction:column}
+.gr{display:grid;grid-template-columns:26px 1fr auto;gap:10px;align-items:start;padding:12px 0;border-top:1px solid var(--line)}
+.grank .gr:first-child{border-top:0;padding-top:4px}
+.gr .pos{font-family:var(--display);font-weight:700;font-size:1.3rem;color:var(--ink-2);text-align:center;line-height:1.2}
+.gr.me .nm{color:var(--accent)}
+.gr .nm{font-weight:600;overflow-wrap:anywhere}
+.gmain{display:flex;flex-direction:column;gap:4px;min-width:0}
+.gside{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+.gside .xp{font-family:var(--display);font-weight:700;font-size:1.3rem}
+.gside .flame{font-size:.95rem}
+.gside .flame svg{width:18px;height:18px}
 .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px 8px;text-align:center}
 .stat{display:flex;flex-direction:column;gap:2px;min-width:0}
 .stat b{font-family:var(--display);font-size:1.7rem;line-height:1;color:var(--green)}
@@ -450,7 +461,7 @@ function fresh(){ return {v:1,best:0,setup:false,nick:'',examDate:'2027-04-24',s
 function norm(s){ var f=fresh(); if(!s||typeof s!=='object') return f; for(var k in f){ if(s[k]===undefined||s[k]===null) s[k]=f[k]; } return s; }
 var S=(function(){ try{ return norm(JSON.parse(localStorage.getItem(KEY))); }catch(e){ return fresh(); } })();
 var cloud={db:null,user:null,uid:null,ro:false,dirty:false,busy:false,timer:null,board:null,boardState:'idle',unsub:null};
-function save(){ S.rev=Date.now(); try{ localStorage.setItem(KEY,JSON.stringify(S)); }catch(e){} cloud.dirty=true; clearTimeout(cloud.timer); cloud.timer=setTimeout(push,4000); syncSoon(); }
+function save(){ S.rev=Date.now(); try{ localStorage.setItem(KEY,JSON.stringify(S)); }catch(e){} cloud.dirty=true; clearTimeout(cloud.timer); cloud.timer=setTimeout(push,4000); syncSoon(); groupSoon(); }
 function tday(){ var t=today(); if(S.t.d!==t){ S.t={d:t,rev:0,les:0,foto:0}; } return S.t; }
 
 function seen(id){ return !!S.cards[id]; }
@@ -513,6 +524,7 @@ function mergeState(L,R){ var newer=(R.rev||0)>(L.rev||0)?R:L, older=newer===R?L
   o.xp=Math.max(L.xp||0,R.xp||0); o.best=Math.max(L.best||0,R.best||0); o.start=Math.min(L.start||today(),R.start||today()); o.setup=!!(L.setup||R.setup);
   if(L.lastBackup||R.lastBackup) o.lastBackup=Math.max(L.lastBackup||0,R.lastBackup||0);
   if(L.t&&R.t&&L.t.d===R.t.d) o.t={d:L.t.d,rev:Math.max(L.t.rev||0,R.t.rev||0),les:Math.max(L.t.les||0,R.t.les||0),foto:Math.max(L.t.foto||0,R.t.foto||0)};
+  o.player=newer.player||older.player; o.groep=newer.groep||older.groep;
   o.rev=Math.max(L.rev||0,R.rev||0); o.sync=L.sync; return norm(o); }
 function syncSoon(){ if(!S.sync||!S.sync.code) return; clearTimeout(sync.timer); sync.timer=setTimeout(function(){ syncNow(false); },4000); }
 function syncNow(manual){ if(!S.sync||!S.sync.code) return Promise.resolve(false); if(sync.busy){ sync.again=true; return Promise.resolve(false); } sync.busy=true; clearTimeout(sync.timer);
@@ -528,6 +540,44 @@ function syncNow(manual){ if(!S.sync||!S.sync.code) return Promise.resolve(false
   }).catch(function(){ sync.busy=false; sync.err='Synchroniseren lukte niet. Controleer je internetverbinding; de app probeert het later opnieuw.'; if(ui.tab==='klassement'&&!ui.view) render(); return false; }); }
 document.addEventListener('visibilitychange',function(){ if(!S.sync||!S.sync.code) return; if(document.visibilityState==='visible') syncNow(false); else if(sync.timer){ clearTimeout(sync.timer); syncNow(false); } });
 window.addEventListener('online',function(){ if(S.sync&&S.sync.code) syncNow(false); });
+/* ---------- Jachtgroep: vrienden volgen elkaars vordering ---------- */
+var grp={busy:false,timer:null,err:'',rows:null,at:0};
+function myStats(){ var ms=mastery(ALL), b=null; S.exams.forEach(function(e){ if(b===null||e.score>b) b=e.score; });
+  return {xp:S.xp,reeks:streak(),lessen:Object.keys(S.lessons).length,ltot:LESSONS.length,beheerst:ms.m,gezien:ms.s,totaal:ms.n,best:b,examens:S.exams.length,geslaagd:S.exams.filter(function(e){return e.pass;}).length,dag:today()}; }
+function ensurePlayer(){ if(!S.player||!S.player.id) S.player={id:newCode().replace(/-/g,''),key:newCode()+newCode()}; }
+function groupSoon(){ if(!S.groep||!S.groep.code) return; clearTimeout(grp.timer); grp.timer=setTimeout(function(){ groupSync(false); },6000); }
+function groupRender(){ if(!ui.view&&!ui.run&&!ui.exam&&(ui.tab==='klassement'||ui.tab==='vandaag')){ var a=document.activeElement, keep=a&&a.id==='nick'?a.value:null; render(); if(keep!==null){ var n=document.getElementById('nick'); if(n){ n.value=keep; } } } }
+function groupSync(load){ if(!S.groep||!S.groep.code||grp.busy) return Promise.resolve(); grp.busy=true; ensurePlayer();
+  var p=S.nick?rpc('jacht_stand_zet',{p_id:S.player.id,p_key:S.player.key,p_groep:S.groep.code,p_naam:S.nick,p_stats:myStats()}):Promise.resolve();
+  return p.then(function(){ return load===false&&grp.rows?null:rpc('jacht_stand_lees',{p_groep:S.groep.code}).then(function(rows){ grp.rows=Array.isArray(rows)?rows:[]; grp.at=Date.now(); }); })
+   .then(function(){ grp.busy=false; grp.err=''; groupRender(); },function(){ grp.busy=false; grp.err='De groep kon niet bijgewerkt worden. Controleer je internetverbinding.'; groupRender(); }); }
+function groupFresh(){ if(S.groep&&S.groep.code&&Date.now()-grp.at>30000) groupSync(true); }
+document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='visible') groupFresh(); });
+function agoTxt(iso){ var d=Date.parse(iso); if(!d) return ''; var days=today()-dayNum(new Date(d)); return days<=0?'vandaag actief':days===1?'gisteren actief':days+' dagen geleden actief'; }
+function groupRows(){ return (grp.rows||[]).map(function(r){ var st=r.stats||{}; function n(v){ v=+v; return isFinite(v)?v:0; }
+  return {me:S.player&&r.speler_id===S.player.id,naam:String(r.naam||'').slice(0,24),xp:n(st.xp),reeks:n(st.reeks),lessen:n(st.lessen),ltot:n(st.ltot)||LESSONS.length,beheerst:n(st.beheerst),totaal:n(st.totaal)||ALL.length,best:st.best===null||st.best===undefined?null:n(st.best),examens:n(st.examens),at:r.updated_at}; })
+  .sort(function(a,b){ return b.xp-a.xp; }); }
+function groupCard(){ var g=S.groep&&S.groep.code, h='<section class="card" id="groep"><div class="sesshead"><div><p class="eyebrow">Jachtgroep</p><h2>'+(g?'Hoever staan je vrienden?':'Oefen samen met je vrienden')+'</h2></div>'+(g?'<button type="button" class="iconbtn" data-act="grpRefresh" aria-label="Vernieuwen">'+svg('<path d="M20 12a8 8 0 1 1-2.3-5.6M20 4v5h-5"/>')+'</button>':'')+'</div>';
+  if(!g){
+    h+='<p class="small muted">Maak een groep en stuur de groepscode naar je vrienden, of vul de code in die je van een vriend kreeg. In de groep ziet iedereen elkaars naam, punten, reeks, gelezen lessen, beheerste vragen en beste proefexamen. Verder niets.</p>';
+    if(!S.nick) h+='<p class="small"><strong>Vul eerst hieronder je naam in en bewaar ze.</strong></p>';
+    h+='<button type="button" class="btn green" data-act="grpNew"'+(S.nick?'':' disabled')+'>Maak een groep</button>';
+    h+='<div class="stack" style="gap:8px;border-top:1px solid var(--line);padding-top:12px"><label class="f" for="grpin">Kreeg je een groepscode van een vriend?<input type="text" id="grpin" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ABCD-EFGH-JKLM" value="'+esc(ui.grpIn||'')+'"></label><button type="button" class="btn" data-act="grpJoin"'+(S.nick?'':' disabled')+'>Doe mee</button></div>';
+    if(grp.err) h+='<p class="small" style="color:var(--bad)" role="alert">'+esc(grp.err)+'</p>';
+    return h+'</section>'; }
+  var rows=groupRows();
+  if(!grp.rows) h+='<p class="small muted" role="status">'+(grp.err?'':'De stand wordt geladen…')+'</p>';
+  else { h+='<div class="grank">'; rows.forEach(function(r,i){ var lp=pct(r.lessen,r.ltot);
+      h+='<div class="gr'+(r.me?' me':'')+'"><span class="pos num">'+(i+1)+'</span><div class="gmain"><p class="nm">'+esc(r.naam)+(r.me?' <span class="muted">(jij)</span>':'')+'</p><div class="bar"><i style="width:'+lp+'%"></i></div><p class="small muted num">'+r.lessen+'/'+r.ltot+' lessen · '+pct(r.beheerst,r.totaal)+'% beheerst'+(r.best!==null?' · beste examen '+nl(r.best)+'/60':'')+'</p><p class="small muted">'+esc(agoTxt(r.at))+'</p></div><div class="gside"><span class="xp num">'+r.xp+'</span><span class="flame'+(r.reeks?' on':'')+'">'+svg(FLAME)+r.reeks+'</span></div></div>'; });
+    h+='</div>'; if(rows.length<2) h+='<p class="small muted">Nog niemand anders in je groep. Stuur de code hieronder naar je vrienden.</p>'; }
+  if(grp.err) h+='<p class="small" style="color:var(--bad)" role="alert">'+esc(grp.err)+'</p>';
+  h+='<div class="stack" style="gap:8px;border-top:1px solid var(--line);padding-top:12px"><p class="small muted">Groepscode om te delen:</p><div class="synccode num" id="grpcode">'+esc(g)+'</div><div class="row"><button type="button" class="btn green grow" data-act="grpCopy">Kopieer code</button>'+(navigator.share?'<button type="button" class="btn grow" data-act="grpShare">Deel</button>':'')+'</div></div>';
+  h+=(ui.confirm==='grpLeave'?'<p class="small"><strong>Je verdwijnt uit de stand van deze groep.</strong> Je eigen vordering blijft.</p><div class="row"><button type="button" class="btn grow" data-act="cancel">Annuleer</button><button type="button" class="btn danger grow" data-act="grpLeave">Verlaat de groep</button></div>':'<button type="button" class="linkbtn" data-act="grpAskLeave">Verlaat de groep</button>');
+  return h+'</section>'; }
+function groupMini(){ if(!S.groep||!S.groep.code||!grp.rows||grp.rows.length<2) return ''; var rows=groupRows(), me=-1; rows.forEach(function(r,i){ if(r.me) me=i; });
+  var h='<button type="button" class="card linkcard" data-act="tab" data-t="klassement"><span class="lc-ic">'+svg('<circle cx="9" cy="8" r="3.2"/><circle cx="17" cy="9" r="2.6"/><path d="M3 20c.8-3.6 3.2-5.5 6-5.5s5.2 1.9 6 5.5M14.5 14.6c2.8-.4 5.2 1.2 6 4.4"/>')+'</span><div class="grow"><h3>Jachtgroep'+(me>=0?': jij staat '+(me+1)+(me===0?'ste':'de')+' van '+rows.length:'')+'</h3><p class="small muted">'+rows.slice(0,3).map(function(r){ return esc(r.naam)+' '+r.lessen+'/'+r.ltot+' lessen'; }).join(' · ')+'</p></div><span class="chev">&rarr;</span></button>';
+  return h; }
+
 function syncCard(){ var c=S.sync&&S.sync.code, h='<section class="card" id="sync"><h2>Toestellen koppelen</h2>';
   if(c){ h+='<p class="small muted">Dit toestel is gekoppeld. Vul deze code in op je andere gsm of computer (Profiel, Toestellen koppelen). Je vordering blijft dan vanzelf op beide gelijk.</p><div class="synccode num" id="synccode">'+esc(c)+'</div><div class="row"><button type="button" class="btn green grow" data-act="syncCopy">Kopieer code</button><button type="button" class="btn grow" data-act="syncGo">Nu synchroniseren</button></div>';
     h+='<p class="small'+(sync.err?'" style="color:var(--bad)" role="alert">'+esc(sync.err):' muted" role="status">'+(sync.busy?'Bezig met synchroniseren…':S.sync.last?'Laatst gesynchroniseerd: '+new Date(S.sync.last).toLocaleString('nl-BE',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'Nog niet gesynchroniseerd'))+'</p>';
@@ -554,7 +604,7 @@ var VICON={1:'<span aria-hidden="true">§</span>',2:'<svg viewBox="0 0 24 24" fi
 function badge(v){ return '<span class="badge vk'+v+'">'+VICON[v]+'</span>'; }
 function svg(p){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+p+'</svg>'; }
 function go(view){ ui.view=view; ui.confirm=null; ENTER=true; render(); toTop(); }
-function setTab(t){ ui.chain=false; ui.tab=t; ui.view=null; ui.confirm=null; try{ if(location.hash!=='#'+t) location.hash=t; }catch(e){} ENTER=true; render(); toTop(); }
+function setTab(t){ ui.chain=false; ui.tab=t; if(t==='klassement'||t==='vandaag') setTimeout(groupFresh,0); ui.view=null; ui.confirm=null; try{ if(location.hash!=='#'+t) location.hash=t; }catch(e){} ENTER=true; render(); toTop(); }
 window.addEventListener('hashchange',function(){ var h=location.hash.replace('#',''); if(TABS.some(function(t){return t[0]===h;})&&h!==ui.tab&&!ui.run&&!ui.exam){ ui.tab=h; ui.view=null; render(); } });
 
 var BACKV={lesson:1,module:1,gids:1,groep:1,settings:1,flags:1,bronnen:1};
@@ -610,6 +660,7 @@ function vVandaag(){ var p=plan(), ss=steps(), nx=nextStep(), st=streak(), nd=ss
   else { var les=nextLesson(); h+='<p class="small muted">Sterk gedaan. Zin in meer?</p><div class="row">'+(les?'<button type="button" class="btn grow" data-act="extraLes">Extra les</button>':'')+'<button type="button" class="btn grow" data-act="practice" data-k="'+(weak().length?'weak':'mix')+'">'+(weak().length?'Zwakke punten':'Mix van 20')+'</button></div>'; }
   h+='</section>';
   h+=streakCard();
+  h+=groupMini();
   var lastEx=S.exams.length?S.exams[S.exams.length-1].day:0, readPct=pct(PATH.length-p.left,PATH.length);
   if((p.phase===3||readPct>=60)&&today()-lastEx>=7) h+='<section class="card"><h2>Tijd voor een proefexamen</h2><p class="small muted">60 vragen in 60 minuten, met de echte puntentelling.</p><button type="button" class="btn green" data-act="tab" data-t="examen">Naar het proefexamen</button></section>';
   h+='<section class="stack"><h2>Je vordering</h2><div class="tiles">';
@@ -813,6 +864,7 @@ function vKlassement(){ var me=myRow(), best=bestStreak(), readN=Object.keys(S.l
   var h=head(S.nick||'Profiel','Jouw profiel');
   function stat(v,l){ return '<div class="stat"><b class="num">'+v+'</b><span>'+l+'</span></div>'; }
   h+='<section class="card"><div class="stats">'+stat(me.streak,'dagen op rij')+stat(best,'langste reeks')+stat(me.xp,'punten')+stat(readN+'/'+LESSONS.length,'lessen gelezen')+stat(me.beheerst,'vragen beheerst')+stat(seenN,'vragen gezien')+stat(bestEx===null?'–':nl(bestEx),'beste proefexamen')+stat(S.exams.length,'proefexamens')+stat(passN,'keer geslaagd')+'</div></section>';
+  h+=groupCard();
   h+=streakCard();
   h+='<section class="card"><label class="f" for="nick">Je naam<input type="text" id="nick" maxlength="24" autocomplete="nickname" value="'+esc(S.nick)+'" placeholder="Bijvoorbeeld je voornaam"></label><button type="button" class="btn green" data-act="saveNick">Bewaar naam</button></section>';
   h+=syncCard();
@@ -917,13 +969,24 @@ var A={
   examReview:function(d){ ui.exam.rv=+d.i; render(); var el=document.getElementById('rv'); if(el&&el.scrollIntoView) el.scrollIntoView({block:'start',behavior:'smooth'}); },
   examClose:function(){ ui.exam=null; ui.view=null; ui.tab='examen'; render(); toTop(); },
   cancel:function(){ ui.confirm=null; render(); },
-  saveNick:function(){ var el=document.getElementById('nick'); S.nick=(el?el.value:'').trim().slice(0,24); save(); clearTimeout(cloud.timer); push(); render(); },
+  saveNick:function(){ var el=document.getElementById('nick'); S.nick=(el?el.value:'').trim().slice(0,24); save(); clearTimeout(cloud.timer); push(); render(); if(S.groep) groupSync(true); },
   goal:function(d){ S.goal=+d.g; save(); keepInputs(); },
   saveSettings:function(){ readSettings(); save(); ui.view=null; render(); toTop(); },
   flags:function(){ go({name:'flags'}); },
   flagsTab:function(){ go({name:'flags',from:'tab'}); },
   bronnen:function(){ go({name:'bronnen'}); },
   askReset:function(){ readSettings(); ui.confirm='reset'; render(); },
+  grpNew:function(){ if(!S.nick) return; ensurePlayer(); S.groep={code:newCode()}; grp.rows=null; grp.err=''; save(); render(); groupSync(true); },
+  grpJoin:function(){ var t=document.getElementById('grpin'), code=normCode(t?t.value:''); ui.grpIn=t?t.value:''; grp.err='';
+    if(!S.nick){ grp.err='Vul eerst je naam in.'; render(); return; }
+    if(!code){ grp.err='Een groepscode heeft 12 tekens, bijvoorbeeld ABCD-EFGH-JKLM.'; render(); return; }
+    rpc('jacht_stand_lees',{p_groep:code}).then(function(rows){ if(!rows||!rows.length){ grp.err='Deze groep bestaat niet. Kijk de code na bij je vriend.'; render(); return; }
+      ensurePlayer(); S.groep={code:code}; ui.grpIn=''; grp.rows=null; save(); render(); groupSync(true); },function(){ grp.err='Meedoen lukte niet. Controleer je internetverbinding.'; render(); }); },
+  grpRefresh:function(){ grp.at=0; groupSync(true); },
+  grpCopy:function(){ var c=(S.groep||{}).code||''; try{ navigator.clipboard.writeText(c).then(function(){ var el=document.getElementById('grpcode'); if(el){ el.classList.add('copied'); setTimeout(function(){ el.classList.remove('copied'); },1200); } },function(){}); }catch(e){} },
+  grpShare:function(){ try{ navigator.share({title:'Jachtexamen Trainer',text:'Oefen mee voor het jachtexamen! Open https://mathieudraps.github.io/jachtexamen/ en vul in Profiel bij Jachtgroep deze code in: '+((S.groep||{}).code||'')}).catch(function(){}); }catch(e){} },
+  grpAskLeave:function(){ ui.confirm='grpLeave'; render(); },
+  grpLeave:function(){ var pl=S.player; ui.confirm=null; delete S.groep; grp.rows=null; grp.err=''; save(); render(); if(pl) rpc('jacht_stand_weg',{p_id:pl.id,p_key:pl.key}).catch(function(){}); },
   syncNew:function(){ S.sync={code:newCode()}; sync.err=''; S.rev=Date.now(); try{ localStorage.setItem(KEY,JSON.stringify(S)); }catch(e){} render(); syncNow(true).then(function(){ render(); }); },
   syncJoin:function(){ var t=document.getElementById('syncin'), code=normCode(t?t.value:''); ui.syncIn=t?t.value:''; sync.err='';
     if(!code){ sync.err='Een koppelcode heeft 12 tekens, bijvoorbeeld ABCD-EFGH-JKLM.'; render(); return; }
@@ -945,7 +1008,7 @@ var A={
   setupExam:function(d){ readSetup(); ui.setupExam=d.x; render(); },
   setupGoal:function(d){ readSetup(); S.goal=+d.g; render(); },
   setupDone:function(){ readSetup(); S.setup=true; ui.setupExam=null; save(); clearTimeout(cloud.timer); push(); ui.tab='vandaag'; ui.view=null; render(); toTop(); },
-  reset:function(){ var keep={setup:S.setup,nick:S.nick,examDate:S.examDate,schoolEnd:S.schoolEnd,goal:S.goal}; clearTimeout(sync.timer); S=fresh(); for(var k in keep) S[k]=keep[k]; save(); ui.confirm=null; ui.view=null; render(); }
+  reset:function(){ var keep={setup:S.setup,nick:S.nick,examDate:S.examDate,schoolEnd:S.schoolEnd,goal:S.goal}; clearTimeout(sync.timer); if(S.groep&&S.player) rpc('jacht_stand_weg',{p_id:S.player.id,p_key:S.player.key}).catch(function(){}); S=fresh(); for(var k in keep) S[k]=keep[k]; save(); ui.confirm=null; ui.view=null; render(); }
 };
 function readSettings(){ var a=document.getElementById('examDate'), b=document.getElementById('schoolEnd'); if(a&&!isNaN(parseDay(a.value))) S.examDate=a.value; if(b) S.schoolEnd=isNaN(parseDay(b.value))?'':b.value; }
 function keepInputs(){ readSettings(); render(); }
@@ -966,7 +1029,7 @@ document.addEventListener('keydown',function(ev){ if(ev.key==='Enter'&&ev.target
   function out(){ if(!el.parentNode) return; el.classList.add('out'); setTimeout(function(){ if(el.parentNode) el.parentNode.removeChild(el); },480); }
   el.addEventListener('click',out); setTimeout(out, rm?150:3000); })();
 try{ if(window.navigator.standalone===true) document.documentElement.classList.add('ios-app'); }catch(e){}
-(function boot(){ var h=''; try{ h=location.hash.replace('#',''); }catch(e){} if(TABS.some(function(t){return t[0]===h;})) ui.tab=h; tday(); render(); initCloud(); if(S.sync&&S.sync.code) setTimeout(function(){ syncNow(false); },800); })();
+(function boot(){ var h=''; try{ h=location.hash.replace('#',''); }catch(e){} if(TABS.some(function(t){return t[0]===h;})) ui.tab=h; tday(); render(); initCloud(); if(S.sync&&S.sync.code) setTimeout(function(){ syncNow(false); },800); if(S.groep&&S.groep.code) setTimeout(function(){ groupSync(true); },1400); })();
 })();
 </script>
 <script>if('serviceWorker' in navigator){addEventListener('load',function(){navigator.serviceWorker.register('sw.js').then(function(r){r.update();}).catch(function(){});});var _r=false;navigator.serviceWorker&&navigator.serviceWorker.addEventListener('controllerchange',function(){if(_r)return;_r=true;location.reload();});}</script></body></html>
