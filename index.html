@@ -1,4 +1,4 @@
-<!doctype html><html lang="nl-BE"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#2F5D3F"><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icons/icon-180.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Jachtexamen"><meta name="apple-mobile-web-app-status-bar-style" content="default"><style>:root{color-scheme:light;padding:env(safe-area-inset-top,0) 0 env(safe-area-inset-bottom,0)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style><title>Jachtexamen Trainer</title></head><body>
+<!doctype html><html lang="nl-BE"><head><meta charset="utf-8"><script>try{if(localStorage.getItem('jx-region')==='wa')location.replace('fr.html'+location.hash)}catch(e){}</script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#2F5D3F"><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icons/icon-180.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Jachtexamen"><meta name="apple-mobile-web-app-status-bar-style" content="default"><style>:root{color-scheme:light;padding:env(safe-area-inset-top,0) 0 env(safe-area-inset-bottom,0)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style><title>Jachtexamen Trainer</title></head><body>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700&display=swap">
 <style>
@@ -443,8 +443,16 @@ nav.tabs button.on svg{transform:translateY(-1px)}
 'use strict';
 var D = window.JX || {modules:[],questions:[],images:[]};
 var INTERVALS=[0,1,3,7,16,35];
+var CFG=D.cfg||{};
+var REGION=CFG.region||'vl';
 var VAK={1:{n:'Wetgeving',ex:15},2:{n:'Fauna',ex:30},3:{n:'Wapens en munitie',ex:15}};
+if(CFG.vak) VAK=CFG.vak;
+var EXAM={min:CFG.minutes||60,malus:CFG.malus===undefined?0.5:CFG.malus,passVak:CFG.passVak||{1:0.5,2:0.5,3:0.5},passTot:CFG.passTot||0.6};
+EXAM.total=VAK[1].ex+VAK[2].ex+VAK[3].ex; EXAM.need=Math.ceil(EXAM.total*EXAM.passTot-1e-9);
+var SESS=CFG.sessions||[['april','Eind april','2027-04-24'],['mei','Eind mei','2027-05-29']];
+function regionGo(r){ try{ localStorage.setItem('jx-region',r); }catch(e){} if(r!==REGION) location.replace(r==='wa'?'fr.html':'./'); }
 var GROUPS={grofwild:'Grofwild',haarwild:'Haas, konijn en muskusrat',predatoren:'Roofdieren','hoenders-duiven':'Hoenders, duiven en snippen',eenden:'Eenden','ganzen-zwanen':'Ganzen en zwanen',watervogels:'Watervogels',steltlopers:'Steltlopers',kraaiachtigen:'Kraaiachtigen',roofvogels:'Dagroofvogels',uilen:'Uilen',sporen:'Sporen en uitwerpselen',wapens:'Wapens en munitie',honden:'Jachthonden en fret'};
+if(D.groups) Object.keys(D.groups).forEach(function(k){ GROUPS[k]=D.groups[k]; });
 var SAME=[['fazant-haan','fazant-hen'],['ree-bok','ree-geit'],['edelhert','edelhert-hinde'],['hermelijn','hermelijn-winter'],['wilde-eend','wilde-eend-wijfje'],['wild-zwijn','frisling'],['hagelpatroon-doorsnede','hagelpatronen'],['kogelpatroon-doorsnede','kogelpatronen']];
 var MONTHS=['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
 
@@ -460,6 +468,7 @@ var CURR=[
   {n:'Het wild leren kennen',d:'Vederwild, roofdieren, waterwild en het hagelgeweer.',m:['fauna-vederwild','fauna-predatoren','wapens-hagel','fauna-waterwild']},
   {n:'Jagen in de praktijk',d:'Wanneer en hoe je mag jagen, de buks, sporen en schade.',m:['wet-seizoenen','wapens-kogel','fauna-sporen','wet-voorwaarden','fauna-roofvogels']},
   {n:'Regels en beheer',d:'Administratie, wapenwet, wildbeheer en soortenbescherming.',m:['wet-administratie','wet-wapens','fauna-ecologie','wet-natuur']}];
+if(CFG.curr) CURR=CFG.curr;
 (function(){ var used={}; CURR.forEach(function(e){ e.m=e.m.filter(function(id){ if(MOD[id]&&!used[id]){ used[id]=1; return true; } return false; }); });
   var rest=D.modules.filter(function(m){return !used[m.id];}).map(function(m){return m.id;}); if(rest.length) CURR.push({n:'Extra',d:'',m:rest}); })();
 var MODORDER=[]; CURR.forEach(function(e){ e.m.forEach(function(id){ MODORDER.push(id); }); });
@@ -478,8 +487,8 @@ function nl(n){ return String(n).replace('.',','); }
 function today(){ return dayNum(); }
 
 /* ---------- state ---------- */
-var KEY='jx-state-v1';
-function fresh(){ return {v:1,best:0,setup:false,nick:'',examDate:'2027-04-24',schoolEnd:'',goal:30,cards:{},lessons:{},days:{},xp:0,exams:[],flags:{},t:{d:0,rev:0,les:0,foto:0},start:today(),rev:0}; }
+var KEY=CFG.key||'jx-state-v1';
+function fresh(){ return {v:1,best:0,setup:false,nick:'',examDate:SESS[0][2],schoolEnd:'',goal:30,cards:{},lessons:{},days:{},xp:0,exams:[],flags:{},t:{d:0,rev:0,les:0,foto:0},start:today(),rev:0}; }
 function norm(s){ var f=fresh(); if(!s||typeof s!=='object') return f; for(var k in f){ if(s[k]===undefined||s[k]===null) s[k]=f[k]; } return s; }
 var S=(function(){ try{ return norm(JSON.parse(localStorage.getItem(KEY))); }catch(e){ return fresh(); } })();
 var cloud={db:null,user:null,uid:null,ro:false,dirty:false,busy:false,timer:null,board:null,boardState:'idle',unsub:null};
@@ -496,7 +505,7 @@ function grade(id,ok){ var t=today(), c=S.cards[id]||{b:0,d:t,r:0,w:0};
   var dd=S.days[t]||{n:0,c:0}; dd.n++; if(ok) dd.c++; S.days[t]=dd; S.xp+=ok?10:2; }
 function streak(){ var t=today(), n=0, d=t; if(!(S.days[d]&&S.days[d].n>=10)) d--; while(S.days[d]&&S.days[d].n>=10){ n++; d--; } return n; }
 function mastery(list){ var m=0,s=0; list.forEach(function(c){ var b=box(c.id); if(b>=4) m++; if(seen(c.id)) s++; }); return {m:m,s:s,n:list.length}; }
-function plan(){ var t=today(), ex=parseDay(S.examDate), sc=parseDay(S.schoolEnd); if(isNaN(ex)) ex=parseDay('2027-04-24'); if(isNaN(sc)) sc=t-1;
+function plan(){ var t=today(), ex=parseDay(S.examDate), sc=parseDay(S.schoolEnd); if(isNaN(ex)) ex=parseDay(SESS[0][2]); if(isNaN(sc)) sc=t-1;
   var left=PATH.filter(function(l){return !S.lessons[l.id];}).length, dte=ex-t, phase, per;
   if(t<=sc){ phase=1; per=1; }
   else if(dte>21){ phase=2; per=Math.min(3,Math.max(1,Math.ceil(left/Math.max(1,dte-21)))); }
@@ -754,8 +763,8 @@ function botSearch(q){ var B=botIndex(), qt=toks(q), uniq=[]; qt.forEach(functio
 function botPhotos(q,txt){ var B=botIndex(), n=' '+normTxt(q)+' ', out=[]; B.names.forEach(function(x){ if(out.length<2&&n.indexOf(' '+x.n+' ')>=0&&out.indexOf(x.k)<0) out.push(x.k); });
   if(!out.length&&txt){ var t=' '+normTxt(txt)+' '; B.names.forEach(function(x){ if(out.length<1&&x.n.length>3&&t.indexOf(' '+x.n+' ')>=0) out.push(x.k); }); } return out; }
 function botAnswer(q){ var nq=normTxt(q).trim();
-  if(/^(hallo|hoi|dag|hey|hi|goeiemorgen|goedemorgen|goedenavond)\b/.test(nq)&&nq.split(' ').length<=3) return {html:'<p>Dag! Stel gerust een vraag over de leerstof, bijvoorbeeld <em>Wat is de draagtijd van een ree?</em></p>'};
-  if(/^(bedankt|merci|dank je|dankjewel|thanks|top|ok|oke|super)\b/.test(nq)&&nq.split(' ').length<=4) return {html:'<p>Graag gedaan. Succes met studeren!</p>'};
+  if(/^(hallo|hoi|dag|hey|hi|goeiemorgen|goedemorgen|goedenavond|bonjour|salut|coucou|bonsoir)\b/.test(nq)&&nq.split(' ').length<=3) return {html:'<p>Dag! Stel gerust een vraag over de leerstof, bijvoorbeeld <em>Wat is de draagtijd van een ree?</em></p>'};
+  if(/^(bedankt|merci|dank je|dankjewel|thanks|top|ok|oke|super|parfait|genial)\b/.test(nq)&&nq.split(' ').length<=4) return {html:'<p>Graag gedaan. Succes met studeren!</p>'};
   var r=botSearch(q);
   if(!r.length||r[0].s<1.2||r[0].cov<0.5) return {html:'<p>Daar vind ik niets duidelijks over in de cursus. Probeer het met andere woorden, of met de naam van een soort, wapen of wet. Bijvoorbeeld: <em>openingstijd haas</em> of <em>hagel diameter</em>.</p>',none:true};
   var best=r[0], pick=[best], other=r.slice(1).filter(function(x){ return x.s>=best.s*0.55; });
@@ -880,22 +889,22 @@ function vGroep(v){ var cs=IMGCARDS.filter(function(c){return c.group===v.id;});
 /* ---------- Proefexamen ---------- */
 function vExamen(){ var h=head('Proefexamen','Zoals op het echte examen'), ex=S.exams, best=null, passN=0;
   ex.forEach(function(e){ if(best===null||e.score>best) best=e.score; if(e.pass) passN++; });
-  h+='<section class="card hero exam-hero"><div class="exam-top"><div class="bigstat"><b class="num">60</b><span>vragen</span></div><div class="bigstat"><b class="num">60</b><span>minuten</span></div><div class="bigstat"><b class="num">36</b><span>om te slagen</span></div></div>';
-  h+='<div class="vakbar" role="img" aria-label="15 vragen wetgeving, 30 fauna, 15 wapens en munitie"><i class="vk1" style="flex:15"></i><i class="vk2" style="flex:30"></i><i class="vk3" style="flex:15"></i></div><div class="vaklegend">'+[1,2,3].map(function(v){ return '<span class="vk'+v+'"><i></i>'+VAK[v].n+' <b class="num">'+VAK[v].ex+'</b></span>'; }).join('')+'</div>';
-  h+='<div class="pts"><span class="pt good">+1<small>juist</small></span><span class="pt bad">−0,5<small>fout</small></span><span class="pt">0<small>blanco</small></span></div><p class="small muted">Je slaagt met minstens de helft van de punten per vak én 36 op 60 in totaal.</p><button type="button" class="btn primary block" data-act="examStart">Start het proefexamen</button></section>';
+  h+='<section class="card hero exam-hero"><div class="exam-top"><div class="bigstat"><b class="num">'+EXAM.total+'</b><span>vragen</span></div><div class="bigstat"><b class="num">'+EXAM.min+'</b><span>minuten</span></div><div class="bigstat"><b class="num">'+EXAM.need+'</b><span>om te slagen</span></div></div>';
+  h+='<div class="vakbar" role="img" aria-label="'+[1,2,3].map(function(v){ return VAK[v].ex+' '+VAK[v].n; }).join(', ')+'"><i class="vk1" style="flex:'+VAK[1].ex+'"></i><i class="vk2" style="flex:'+VAK[2].ex+'"></i><i class="vk3" style="flex:'+VAK[3].ex+'"></i></div><div class="vaklegend">'+[1,2,3].map(function(v){ return '<span class="vk'+v+'"><i></i>'+VAK[v].n+' <b class="num">'+VAK[v].ex+'</b></span>'; }).join('')+'</div>';
+  h+='<div class="pts"><span class="pt good">+1<small>juist</small></span><span class="pt'+(EXAM.malus?' bad':'')+'">'+(EXAM.malus?'\u2212'+nl(EXAM.malus):'0')+'<small>fout</small></span><span class="pt">0<small>blanco</small></span></div><p class="small muted">'+(REGION==='wa'?'Je slaagt met minstens 60% in branche I en II, 70% in branche III en 66% in totaal.':'Je slaagt met minstens de helft van de punten per vak \u00e9n 36 op 60 in totaal.')+'</p><button type="button" class="btn primary block" data-act="examStart">Start het proefexamen</button></section>';
   if(ex.length){ var last=ex.slice(-12);
-    h+='<section class="card"><div class="sesshead"><div><p class="eyebrow">Jouw resultaten</p><h2>'+ex.length+(ex.length===1?' proefexamen':' proefexamens')+'</h2><p class="small muted num">Beste score '+nl(best)+'/60 · '+passN+' keer geslaagd</p></div></div><div class="hist" role="img" aria-label="Scores van je laatste proefexamens">';
-    last.forEach(function(e){ var hgt=Math.max(4,Math.min(100,e.score/60*100)); h+='<span class="hb'+(e.pass?' ok':'')+'" style="height:'+hgt+'%"><em class="num">'+nl(e.score)+'</em></span>'; });
-    h+='<s style="bottom:60%"><em>36</em></s></div><div class="list">';
-    ex.slice().reverse().slice(0,6).forEach(function(e){ h+='<div class="item"><div class="grow"><h3 class="num">'+nl(e.score)+' / 60 <span class="small muted" style="font-weight:400">· '+fmtDay(e.day)+'</span></h3><p class="small muted num">wet '+nl(e.v[0])+'/15 · fauna '+nl(e.v[1])+'/30 · wapens '+nl(e.v[2])+'/15</p></div><span class="chip '+(e.pass?'good':'bad')+'">'+(e.pass?'Geslaagd':'Niet geslaagd')+'</span></div>'; });
+    h+='<section class="card"><div class="sesshead"><div><p class="eyebrow">Jouw resultaten</p><h2>'+ex.length+(ex.length===1?' proefexamen':' proefexamens')+'</h2><p class="small muted num">Beste score '+nl(best)+'/'+EXAM.total+' · '+passN+' keer geslaagd</p></div></div><div class="hist" role="img" aria-label="Scores van je laatste proefexamens">';
+    last.forEach(function(e){ var hgt=Math.max(4,Math.min(100,e.score/EXAM.total*100)); h+='<span class="hb'+(e.pass?' ok':'')+'" style="height:'+hgt+'%"><em class="num">'+nl(e.score)+'</em></span>'; });
+    h+='<s style="bottom:'+Math.round(EXAM.need/EXAM.total*100)+'%"><em>'+EXAM.need+'</em></s></div><div class="list">';
+    ex.slice().reverse().slice(0,6).forEach(function(e){ h+='<div class="item"><div class="grow"><h3 class="num">'+nl(e.score)+' / '+EXAM.total+' <span class="small muted" style="font-weight:400">· '+fmtDay(e.day)+'</span></h3><p class="small muted num">'+[1,2,3].map(function(v){ return VAK[v].n+' '+nl(e.v[v-1])+'/'+VAK[v].ex; }).join(' \u00b7 ')+'</p></div><span class="chip '+(e.pass?'good':'bad')+'">'+(e.pass?'Geslaagd':'Niet geslaagd')+'</span></div>'; });
     h+='</div></section>'; }
-  h+='<section class="card linkcard tipcard"><span class="lc-ic">'+svg('<circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.5"/>')+'</span><div class="grow"><h3>Gokken of blanco laten?</h3><p class="small">Blind gokken levert gemiddeld 0 punten op. Kun je één antwoord zeker schrappen, dan is gokken tussen de twee andere gemiddeld +0,25 punt waard. Laat alleen blanco als je echt geen idee hebt.</p></div></section>';
+  h+='<section class="card linkcard tipcard"><span class="lc-ic">'+svg('<circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.5"/>')+'</span><div class="grow"><h3>Gokken of blanco laten?</h3><p class="small">'+(EXAM.malus?'Blind gokken levert gemiddeld 0 punten op. Kun je \u00e9\u00e9n antwoord zeker schrappen, dan is gokken tussen de twee andere gemiddeld +0,25 punt waard. Laat alleen blanco als je echt geen idee hebt.':'Een fout antwoord kost niets. Vul dus altijd iets in, ook als je twijfelt: blanco laten levert nooit iets op.')+'</p></div></section>';
   return h; }
 function examStart(){ function txt(v,n){ return sample(TEXTQ.filter(function(q){return q.vak===v;}),n); }
-  var fi=sample(IMGCARDS.filter(function(c){return c.vak===2;}),8), wi=sample(IMGCARDS.filter(function(c){return c.vak===3;}),2);
-  var a=txt(1,15), b=shuffle(fi.concat(txt(2,30-fi.length))), c=shuffle(wi.concat(txt(3,15-wi.length)));
+  var fi=sample(IMGCARDS.filter(function(c){return c.vak===2;}),REGION==='wa'?10:8), wi=sample(IMGCARDS.filter(function(c){return c.vak===3;}),2);
+  var a=txt(1,VAK[1].ex), b=shuffle(fi.concat(txt(2,VAK[2].ex-fi.length))), c=shuffle(wi.concat(txt(3,VAK[3].ex-wi.length)));
   var items=a.concat(b,c).map(prep); if(!items.length) return;
-  ui.exam={items:items,ans:items.map(function(){return null;}),flag:{},i:0,end:Date.now()+3600e3,grid:false,done:false};
+  ui.exam={items:items,ans:items.map(function(){return null;}),flag:{},i:0,end:Date.now()+EXAM.min*60e3,grid:false,done:false};
   clearInterval(examTick); examTick=setInterval(tick,1000); go({name:'exam'}); }
 var examTick=null;
 function left(){ return Math.max(0,Math.round((ui.exam.end-Date.now())/1000)); }
@@ -919,15 +928,15 @@ function vExamRun(){ var e=ui.exam, it=e.items[e.i], n=e.items.length, answered=
 function examSubmit(){ var e=ui.exam; if(!e||e.done) return; e.done=true; clearInterval(examTick); ui.confirm=null;
   var v=[0,0,0], ok=0, bad=0, blank=0;
   e.items.forEach(function(it,i){ var a=e.ans[i], k=it.c.vak-1; if(a===null){ blank++; return; }
-    if(it.opts[a].ok){ ok++; v[k]+=1; } else { bad++; v[k]-=0.5; var c=S.cards[it.c.id]||{b:0,d:today(),r:0,w:0}; c.b=1; c.w++; c.d=today()+1; S.cards[it.c.id]=c; } });
-  var score=v[0]+v[1]+v[2], pass=v[0]>=7.5&&v[1]>=15&&v[2]>=7.5&&score>=36;
+    if(it.opts[a].ok){ ok++; v[k]+=1; } else { bad++; v[k]-=EXAM.malus; var c=S.cards[it.c.id]||{b:0,d:today(),r:0,w:0}; c.b=1; c.w++; c.d=today()+1; S.cards[it.c.id]=c; } });
+  var score=v[0]+v[1]+v[2], pass=[1,2,3].every(function(x){ return v[x-1]>=VAK[x].ex*EXAM.passVak[x]-1e-9; })&&score>=EXAM.need;
   e.res={v:v,score:score,pass:pass,ok:ok,bad:bad,blank:blank};
   S.exams.push({day:today(),score:score,v:v,pass:pass}); if(S.exams.length>40) S.exams=S.exams.slice(-40);
   S.xp+=50+(pass?100:0)+ok*5; var dd=S.days[today()]||{n:0,c:0}; dd.n+=ok+bad; dd.c+=ok; S.days[today()]=dd; save(); go({name:'examEnd'}); }
-function vExamEnd(){ var e=ui.exam, r=e.res, w=Math.max(0,Math.min(100,r.score/60*100));
+function vExamEnd(){ var e=ui.exam, r=e.res, w=Math.max(0,Math.min(100,r.score/EXAM.total*100)), gp=Math.round(EXAM.need/EXAM.total*100);
   var h='<header><p class="eyebrow">Proefexamen</p><h1>'+(r.pass?'Geslaagd!':'Nog niet geslaagd')+'</h1></header>';
-  h+='<section class="card"><div class="row">'+ring(Math.max(0,r.score)/60,104,9,r.pass?'var(--good)':'var(--bad)','var(--surface-2)','<span><b>'+nl(r.score)+'</b><small>op 60</small></span>')+'<div class="grow"><p class="num"><strong>'+r.ok+'</strong> juist</p><p class="num"><strong>'+r.bad+'</strong> fout</p><p class="num"><strong>'+r.blank+'</strong> blanco</p></div></div><div class="scale" role="img" aria-label="Score '+nl(r.score)+' op 60, slaaggrens 36"><i class="'+(r.pass?'':'fail')+'" style="width:'+w+'%"></i><s style="left:60%"></s><em style="left:60%">slaaggrens 36</em></div>';
-  h+='<div class="kv" style="margin-top:6px">'; [1,2,3].forEach(function(v){ var mx=VAK[v].ex, sc=r.v[v-1], okv=sc>=mx/2; h+='<span>'+VAK[v].n+'</span><span class="num"><strong>'+nl(sc)+'</strong> / '+mx+'</span><span class="chip '+(okv?'good':'bad')+'">'+(okv?'ok':'onder de helft')+'</span>'; }); h+='</div></section>';
+  h+='<section class="card"><div class="row">'+ring(Math.max(0,r.score)/EXAM.total,104,9,r.pass?'var(--good)':'var(--bad)','var(--surface-2)','<span><b>'+nl(r.score)+'</b><small>op '+EXAM.total+'</small></span>')+'<div class="grow"><p class="num"><strong>'+r.ok+'</strong> juist</p><p class="num"><strong>'+r.bad+'</strong> fout'+(EXAM.malus?'':' (geen aftrek)')+'</p><p class="num"><strong>'+r.blank+'</strong> blanco</p></div></div><div class="scale" role="img" aria-label="Score '+nl(r.score)+' op '+EXAM.total+', slaaggrens '+EXAM.need+'"><i class="'+(r.pass?'':'fail')+'" style="width:'+w+'%"></i><s style="left:'+gp+'%"></s><em style="left:'+gp+'%">slaaggrens '+EXAM.need+'</em></div>';
+  h+='<div class="kv" style="margin-top:6px">'; [1,2,3].forEach(function(v){ var mx=VAK[v].ex, sc=r.v[v-1], okv=sc>=mx*EXAM.passVak[v]-1e-9; h+='<span>'+VAK[v].n+'</span><span class="num"><strong>'+nl(sc)+'</strong> / '+mx+'</span><span class="chip '+(okv?'good':'bad')+'">'+(okv?'ok':'te weinig')+'</span>'; }); h+='</div></section>';
   h+='<section class="card"><h2>Overzicht</h2><p class="small muted">Tik op een vraag om het juiste antwoord te zien. Foute antwoorden komen morgen terug in je herhaling.</p><div class="grid60">';
   e.items.forEach(function(it,i){ var a=e.ans[i]; h+='<button type="button" data-act="examReview" data-i="'+i+'" class="'+(a===null?'':it.opts[a].ok?'ok':'no')+(e.rv===i?' cur':'')+'" aria-label="Vraag '+(i+1)+'">'+(i+1)+'</button>'; });
   h+='</div>';
@@ -974,25 +983,27 @@ function backupCard(){ var b=ui.bk||{}, h='<section class="card" id="backup"><h2
   return h+'</div></section>'; }
 
 /* ---------- Eerste keer ---------- */
-function vSetup(){ var sx=ui.setupExam||(S.examDate==='2027-05-29'?'mei':S.examDate==='2027-04-24'?'april':'ander');
+function vSetup(){ var sx=ui.setupExam||(SESS.filter(function(o){ return o[2]===S.examDate; }).map(function(o){ return o[0]; })[0]||'ander');
   var h='<header><p class="eyebrow">Welkom</p><h1>Stel je planning in</h1></header><p class="muted">De app verdeelt de leerstof over de tijd die je hebt. Dat stel je één keer in; later aanpassen kan via het tandwiel.</p>';
+  h+='<section class="card"><div class="f"><span>Waar doe je het jachtexamen? / O\u00f9 passes-tu l\u2019examen ?</span><div class="seg" role="group" aria-label="Regio">'+[['vl','Vlaanderen'],['wa','Wallonie']].map(function(o){ return '<button type="button" data-act="setupRegion" data-r="'+o[0]+'" class="'+(REGION===o[0]?'on':'')+'" aria-pressed="'+(REGION===o[0])+'">'+o[1]+'</button>'; }).join('')+'</div></div><p class="small muted">'+(REGION==='wa'?'Examen en fran\u00e7ais, r\u00e9glementation wallonne (SPW).':'Examen in het Nederlands, Vlaamse regelgeving (ANB).')+'</p></section>';
   h+='<section class="card"><label class="f" for="nick">Je voornaam of bijnaam<input type="text" id="nick" maxlength="24" autocomplete="nickname" value="'+esc(S.nick)+'" placeholder="Zo spreekt de app je aan"></label></section>';
-  h+='<section class="card"><div class="f"><span>Wanneer doe je het theoretisch jachtexamen?</span><div class="seg" role="group" aria-label="Examensessie">'+[['april','Eind april'],['mei','Eind mei'],['ander','Andere datum']].map(function(o){return '<button type="button" data-act="setupExam" data-x="'+o[0]+'" class="'+(sx===o[0]?'on':'')+'" aria-pressed="'+(sx===o[0])+'">'+o[1]+'</button>';}).join('')+'</div></div>';
+  h+='<section class="card"><div class="f"><span>Wanneer doe je het theoretisch jachtexamen?</span><div class="seg" role="group" aria-label="Examensessie">'+SESS.map(function(o){ return [o[0],o[1]]; }).concat([['ander','Andere datum']]).map(function(o){return '<button type="button" data-act="setupExam" data-x="'+o[0]+'" class="'+(sx===o[0]?'on':'')+'" aria-pressed="'+(sx===o[0])+'">'+o[1]+'</button>';}).join('')+'</div></div>';
   if(sx==='ander') h+='<label class="f" for="examDate">Datum van je examen<input type="date" id="examDate" value="'+esc(S.examDate)+'"></label>';
-  h+='<p class="small muted">ANB maakt de exacte data van 2027 later bekend. Pas ze dan aan in de instellingen.</p></section>';
+  h+='<p class="small muted">'+(REGION==='wa'?'Le SPW annonce plus tard les dates exactes de 2027. Adapte-les ensuite dans les r\u00e9glages.':'ANB maakt de exacte data van 2027 later bekend. Pas ze dan aan in de instellingen.')+'</p></section>';
   h+='<section class="card"><label class="f" for="schoolEnd">Wanneer is je laatste schoolexamen?<input type="date" id="schoolEnd" value="'+esc(S.schoolEnd)+'"></label><p class="small muted">Tot die dag krijg je elke avond een korte sessie met één nieuwe les. Daarna gaat het tempo omhoog. Geen schoolexamens? Laat dit leeg.</p></section>';
   h+='<section class="card"><div class="f"><span>Hoeveel tijd heb je per dag?</span><div class="seg" role="group" aria-label="Tijd per dag">'+[15,30,45].map(function(g){return '<button type="button" data-act="setupGoal" data-g="'+g+'" class="'+(S.goal===g?'on':'')+'" aria-pressed="'+(S.goal===g)+'">'+g+' min</button>';}).join('')+'</div></div></section>';
   h+='<button type="button" class="btn primary" data-act="setupDone">Start met oefenen</button>';
   return h; }
-function readSetup(){ var n=document.getElementById('nick'), sc=document.getElementById('schoolEnd'), ex=document.getElementById('examDate'), sx=ui.setupExam||'april';
+function readSetup(){ var n=document.getElementById('nick'), sc=document.getElementById('schoolEnd'), ex=document.getElementById('examDate'), sx=ui.setupExam||SESS[0][0];
   if(n) S.nick=n.value.trim().slice(0,24);
   if(sc) S.schoolEnd=isNaN(parseDay(sc.value))?'':sc.value;
-  if(sx==='april') S.examDate='2027-04-24'; else if(sx==='mei') S.examDate='2027-05-29'; else if(ex&&!isNaN(parseDay(ex.value))) S.examDate=ex.value; }
+  var so=SESS.filter(function(o){ return o[0]===sx; })[0]; if(so) S.examDate=so[2]; else if(ex&&!isNaN(parseDay(ex.value))) S.examDate=ex.value; }
 
 /* ---------- Instellingen ---------- */
 function vSettings(){ var fl=Object.keys(S.flags).length;
   var h=backBtn('Terug')+'<header><p class="eyebrow">Instellingen</p><h1>Jouw planning</h1></header>';
-  h+='<section class="card"><label class="f" for="examDate">Datum van het theoretisch examen<input type="date" id="examDate" value="'+esc(S.examDate)+'"></label><p class="small muted">ANB plant een sessie eind april en eind mei 2027. De exacte datum is nog niet bekend, 24 april is een schatting.</p>';
+  h+='<section class="card"><div class="f"><span>Regio en taal / R\u00e9gion et langue</span><div class="seg" role="group" aria-label="Regio">'+[['vl','Vlaanderen'],['wa','Wallonie']].map(function(o){ return '<button type="button" data-act="regionSwitch" data-r="'+o[0]+'" class="'+(REGION===o[0]?'on':'')+'" aria-pressed="'+(REGION===o[0])+'">'+o[1]+'</button>'; }).join('')+'</div></div><p class="small muted">Je vordering blijft per regio apart bewaard. / Ta progression est gard\u00e9e s\u00e9par\u00e9ment par r\u00e9gion.</p></section>';
+  h+='<section class="card"><label class="f" for="examDate">Datum van het theoretisch examen<input type="date" id="examDate" value="'+esc(S.examDate)+'"></label><p class="small muted">'+(REGION==='wa'?'Premi\u00e8re session le samedi 20 f\u00e9vrier 2027, seconde session le samedi 13 mars 2027. Inscription avant le 14 janvier 2027.':'ANB plant een sessie eind april en eind mei 2027. De exacte datum is nog niet bekend, 24 april is een schatting.')+'</p>';
   h+='<label class="f" for="schoolEnd">Schoolexamens voorbij op<input type="date" id="schoolEnd" value="'+esc(S.schoolEnd)+'"></label><p class="small muted">Tot dan krijg je één korte les per dag. Daarna gaat het tempo omhoog. Leeg laten als je geen schoolexamens hebt.</p>';
   h+='<div class="f"><span>Tijd per dag</span><div class="seg" role="group" aria-label="Tijd per dag">'+[15,30,45].map(function(g){return '<button type="button" data-act="goal" data-g="'+g+'" class="'+(S.goal===g?'on':'')+'" aria-pressed="'+(S.goal===g)+'">'+g+' min</button>';}).join('')+'</div></div>';
   h+='<button type="button" class="btn primary" data-act="saveSettings">Bewaar</button></section>';
@@ -1088,6 +1099,8 @@ var A={
   botLes:function(d){ if(LESSON[d.id]) go({name:'lesson',id:d.id,from:'bot'}); },
   cjump:function(d){ var el=document.getElementById(d.id); if(el){ sc.scrollTop+=el.getBoundingClientRect().top-sc.getBoundingClientRect().top-8; } },
   ctop:function(){ toTop(); },
+  regionSwitch:function(d){ try{ localStorage.setItem(KEY,JSON.stringify(S)); }catch(e){} regionGo(d.r); },
+  setupRegion:function(d){ readSetup(); try{ localStorage.setItem(KEY,JSON.stringify(S)); }catch(e){} regionGo(d.r); },
   setupExam:function(d){ readSetup(); ui.setupExam=d.x; render(); },
   setupGoal:function(d){ readSetup(); S.goal=+d.g; render(); },
   setupDone:function(){ readSetup(); S.setup=true; ui.setupExam=null; save(); clearTimeout(cloud.timer); push(); ui.tab='vandaag'; ui.view=null; render(); toTop(); },
