@@ -27,6 +27,7 @@
 
 *{box-sizing:border-box}
 html{height:100%;background:var(--surface)}
+html.ios-app{padding-top:max(env(safe-area-inset-top,0px),50px)!important;background:var(--bg)}
 body{height:100%;display:flex;flex-direction:column;overflow:hidden;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5;-webkit-text-size-adjust:100%}
 #scroller{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain;background:var(--bg)}
 #app{max-width:560px;margin:0 auto;padding-block:18px 28px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:18px;min-height:60vh}
@@ -178,6 +179,9 @@ nav.tabs > div{max-width:560px;margin:0 auto;display:grid;grid-template-columns:
 nav.tabs button{border:0;background:none;padding:8px 2px 9px;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:.72rem;font-weight:600;color:var(--ink-2);min-height:58px}
 nav.tabs button svg{width:24px;height:24px}
 nav.tabs button.on{color:var(--accent)}
+nav.tabs.fbar > div{display:block}
+nav.tabs.fbar .backbar{width:100%;flex-direction:row;justify-content:center;gap:8px;min-height:58px;font-size:1rem;font-weight:600;color:var(--ink)}
+nav.tabs.fbar .backbar svg{width:22px;height:22px}
 .step.empty .mark{border-style:dashed;color:var(--ink-2)}
 .step.empty h3{color:var(--ink-2)}
 .hero{display:flex;flex-direction:column;gap:14px}
@@ -410,6 +414,12 @@ function go(view){ ui.view=view; ui.confirm=null; ENTER=true; render(); toTop();
 function setTab(t){ ui.chain=false; ui.tab=t; ui.view=null; ui.confirm=null; try{ if(location.hash!=='#'+t) location.hash=t; }catch(e){} ENTER=true; render(); toTop(); }
 window.addEventListener('hashchange',function(){ var h=location.hash.replace('#',''); if(TABS.some(function(t){return t[0]===h;})&&h!==ui.tab&&!ui.run&&!ui.exam){ ui.tab=h; ui.view=null; render(); } });
 
+var BACKV={lesson:1,module:1,gids:1,groep:1,settings:1,flags:1,bronnen:1};
+function focusBar(v){ if(!v) return '';
+  if(BACKV[v.name]) return '<button type="button" class="backbar" data-act="back">'+svg('<path d="M15 5l-7 7 7 7"/>')+'<span>Terug</span></button>';
+  if(v.name==='run') return '<button type="button" class="backbar" data-act="quit">'+svg('<path d="M6 6l12 12M18 6L6 18"/>')+'<span>Stop met deze ronde</span></button>';
+  if(v.name==='exam'&&ui.exam&&!ui.exam.done) return '<button type="button" class="backbar" data-act="examGrid">'+svg('<rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/>')+'<span>'+(ui.exam.grid?'Terug naar de vraag':'Overzicht van alle vragen')+'</span></button>';
+  return ''; }
 function render(){ var focus=!!ui.view, en=ENTER; ENTER=false; app.className=(focus?'focus':'')+(en?' enter':''); tabs.hidden=focus;
   if(!ALL.length){ app.innerHTML='<h1>Jachtexamen Trainer</h1><div class="card"><p>De leerstof kon niet geladen worden. Herlaad de pagina.</p></div>'; tabs.hidden=true; return; }
   tabs.firstElementChild.innerHTML=TABS.map(function(t){ return '<button type="button" data-act="tab" data-t="'+t[0]+'" class="'+(ui.tab===t[0]?'on':'')+'"'+(ui.tab===t[0]?' aria-current="page"':'')+'>'+svg(t[2])+'<span>'+t[1]+'</span></button>'; }).join('');
@@ -417,7 +427,9 @@ function render(){ var focus=!!ui.view, en=ENTER; ENTER=false; app.className=(fo
   if(!S.setup&&!(v&&v.name==='bronnen')){ app.className='focus'+(en?' enter':''); tabs.hidden=true; app.innerHTML=vSetup(); return; }
   if(!v){ html={vandaag:vVandaag,leren:vLeren,oefenen:vOefenen,examen:vExamen,klassement:vKlassement}[ui.tab](); }
   else html={module:vModule,lesson:vLesson,run:vRun,runEnd:vRunEnd,exam:vExamRun,examEnd:vExamEnd,gids:vGids,groep:vGroep,settings:vSettings,bronnen:vBronnen,flags:vFlags}[v.name](v);
-  app.innerHTML=html; }
+  app.innerHTML=html;
+  var fb=focus&&S.setup?focusBar(v):'';
+  if(fb){ tabs.firstElementChild.innerHTML=fb; tabs.classList.add('fbar'); tabs.hidden=false; } else tabs.classList.remove('fbar'); }
 function head(title,eyebrow,gear){ return '<header class="top"><div><p class="eyebrow">'+esc(eyebrow||'Theoretisch jachtexamen Vlaanderen')+'</p><h1>'+esc(title)+'</h1></div>'+(gear?'<button type="button" class="iconbtn" data-act="settings" aria-label="Instellingen">'+svg('<circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M18.4 5.6l-1.8 1.8M7.4 16.6l-1.8 1.8"/>')+'</button>':'')+'</header>'; }
 function backBtn(label){ return '<button type="button" class="back" data-act="back">&larr; '+esc(label||'Terug')+'</button>'; }
 function photo(key,cap){ var im=IMG[key]; if(!im) return ''; return '<figure class="photo"><img src="'+esc(im.file)+'" alt="'+(cap?esc(im.name):'Foto bij de vraag')+'" loading="lazy" onerror="this.parentNode.hidden=true">'+(cap?'<figcaption>'+esc(im.label||im.name)+'</figcaption>':'')+'</figure>'; }
@@ -744,6 +756,7 @@ document.addEventListener('keydown',function(ev){ if(ev.key==='Enter'&&ev.target
 (function splash(){ var el=document.getElementById('splash'); if(!el) return; var rm=false; try{ rm=matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(e){}
   function out(){ if(!el.parentNode) return; el.classList.add('out'); setTimeout(function(){ if(el.parentNode) el.parentNode.removeChild(el); },480); }
   el.addEventListener('click',out); setTimeout(out, rm?150:3000); })();
+try{ if(window.navigator.standalone===true) document.documentElement.classList.add('ios-app'); }catch(e){}
 (function boot(){ var h=''; try{ h=location.hash.replace('#',''); }catch(e){} if(TABS.some(function(t){return t[0]===h;})) ui.tab=h; tday(); render(); initCloud(); })();
 })();
 </script>
